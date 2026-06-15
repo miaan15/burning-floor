@@ -1,0 +1,8 @@
+build/
+vendor/
+.cache/
+.idea/
+
+.github/
+
+CLAUDE.md
