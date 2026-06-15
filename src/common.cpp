@@ -2,6 +2,8 @@ module;
 
 export module common;
 
+export import assert;
+
 export import std;
 
 export namespace stdf = std::filesystem;
