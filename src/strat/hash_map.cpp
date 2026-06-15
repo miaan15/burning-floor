@@ -32,8 +32,9 @@ struct HashMap {
     }
 
     void rehash(size_t new_cap) {
-        Slot *new_slots = std::malloc(new_cap * sizeof(Slot));
-        SlotState *new_states = std::malloc(new_cap * sizeof(SlotState));
+        Slot *new_slots = (Slot *)std::malloc(new_cap * sizeof(Slot));
+        SlotState *new_states =
+            (SlotState *)std::malloc(new_cap * sizeof(SlotState));
         std::memset(new_states, 0, new_cap * sizeof(SlotState));
 
         if (slots) {
@@ -60,7 +61,7 @@ struct HashMap {
     }
 
     bool add(const K &key, const V &val) {
-        if ((len + deleted_count) * 10 >= cap * 7) // 70% 
+        if ((len + deleted_count) * 10 >= cap * 7) // 70%
             rehash(cap < 8 ? 8 : cap * 2);
 
         constexpr auto FALLBACK = (size_t)(-1);
@@ -236,8 +237,6 @@ struct HashMap {
         len = deleted_count = 0;
     }
 
-    [[nodiscard]] bool empty() const { return len == 0; }
-
     template <bool IsConst> struct IteratorImpl {
         using map_type = std::conditional_t<IsConst, const HashMap, HashMap>;
         using map_ptr = map_type *;
@@ -260,10 +259,10 @@ struct HashMap {
             while (index < map->cap && map->states[index] != TAKEN) ++index;
         }
 
-        [[nodiscard]] reference operator*() const { 
-            return map->slots[index]; 
+        [[nodiscard]] reference operator*() const {
+            return map->slots[index];
         }
-        [[nodiscard]] pointer operator->() const { 
+        [[nodiscard]] pointer operator->() const {
             return &map->slots[index];
         }
 

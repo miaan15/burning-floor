@@ -19,7 +19,8 @@ struct DynArray {
 
     void reserve(size_t new_cap) {
         if (new_cap <= cap) return;
-        T* new_data = std::malloc(new_cap * sizeof(T));
+
+        T* new_data = (T *)std::malloc(new_cap * sizeof(T));
 
         if (data) {
             std::memcpy(new_data, data, len * sizeof(T));
@@ -38,8 +39,7 @@ struct DynArray {
 
     void append(const T& val) {
         if (len == cap) grow(len + 1);
-        data[len] = val;
-        ++len;
+        data[len++] = val;
     }
 
     void append_range(T *range_begin, size_t range_len) {
@@ -69,8 +69,6 @@ struct DynArray {
         if (index >= len) return nullptr;
         return &data[index];
     }
-
-    [[nodiscard]] bool empty() const { return len == 0; }
 
     void clear() { len = 0; }
 
