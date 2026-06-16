@@ -71,6 +71,32 @@ export struct SpinesContext {
         arena.destroy();
     }
 
+    void print_debug() {
+        std::cout << "Identifiers - cap: " << identifiers_cap << "\n";
+        for (size_t i = 0; i < identifiers_cap; ++i) {
+            Identifier p = identifiers[i];
+            std::cout
+                << "\t " << i << ": ["
+                << std::string_view(identifier_names + p.name_begin, p.name_len)
+                << "]: "
+                << "fields " << p.fields_begin << " - " << p.fields_len
+                << " | parent of " << p.parent_len << "\n";
+        }
+        std::cout << "Fields - cap: " << fields_cap << "\n";
+        for (size_t i = 0; i < fields_cap; ++i) {
+            Field p = fields[i];
+            std::string name = "int";
+            if (p.type == 1) name = "float";
+            if (p.type == 2) name = "string";
+            std::cout << "\t " << i << ": [" << name << "]: ";
+            if (p.type == 0) std::cout << p.int_val;
+            if (p.type == 1) std::cout << p.float_val;
+            if (p.type == 2)
+                std::cout << string_data + p.string_val;
+            std::cout << "\n";
+        }
+    }
+
     SpinesParseError parse(std::string_view source) {
         DynArray<Token> tokens;
 
@@ -157,8 +183,12 @@ export struct SpinesContext {
 
             switch (state) {
 
+            std::cout << "cur state: " << (int)state 
+                      << " - " << token.line << ":" << token.column << "\n";
+
             case EXPECT_IDENTIFIER: {
                 if (might_be_value(strv.front())) {
+                    tokens.destroy();
                     return SpinesParseError{
                         SpinesParseError::INVALID_IDENTIFIER_NAME,
                         token.index, token.column, token.line
@@ -191,7 +221,9 @@ export struct SpinesContext {
                         size_t num_len = strv.find_first_of(" \t\n\r,}");
                         append_token(TOKEN_NUMBER, num_len);
                         advance_loc(num_len);
+                        state = AFTER_FIELD;
                     } else {
+                        tokens.destroy();
                         return SpinesParseError{
                             SpinesParseError::INVALID_FIELD_VAL,
                             token.index, token.column, token.line
@@ -203,6 +235,7 @@ export struct SpinesContext {
 
             case AFTER_IDENTIFIER: {
                 if (strv.front() != '=' && strv.front() != '{') {
+                    tokens.destroy();
                     return SpinesParseError{
                         SpinesParseError::INVALID_SYNTAX,
                         token.index, token.column, token.line
@@ -366,6 +399,7 @@ export struct SpinesContext {
                         _assert(fields_offset <= fields_cap,
                                 "fields_len out of bounds");
                     } else {
+                        tokens.destroy();
                         return SpinesParseError{
                             SpinesParseError::INVALID_FIELD_VAL,
                             token.index, token.column, token.line
@@ -412,6 +446,7 @@ export struct SpinesContext {
             } break;
 
             default: {
+                tokens.destroy();
                 return SpinesParseError{
                     SpinesParseError::INVALID_SYNTAX,
                     token.index, token.column, token.line
@@ -423,6 +458,7 @@ export struct SpinesContext {
             if (just_after_identifier > 0) --just_after_identifier;
         }
 
+        tokens.destroy();
         return SpinesParseError{};
     }
 };
