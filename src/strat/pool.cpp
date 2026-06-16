@@ -18,8 +18,7 @@ struct Pool {
 
     void init(size_t cap) {
         size_t total_size = cap * sizeof(T);
-        total_size =
-            (total_size + alignof(size_t) - 1) & ~(alignof(size_t) - 1);
+        total_size = (total_size + alignof(size_t) - 1) & ~(alignof(size_t) - 1);
         size_t free_ids_offset = total_size;
         total_size += cap * sizeof(size_t);
         size_t deleted_offset = total_size;
@@ -44,8 +43,7 @@ struct Pool {
         if (new_cap <= cap) return;
 
         size_t total_size = new_cap * sizeof(T);
-        total_size =
-            (total_size + alignof(size_t) - 1) & ~(alignof(size_t) - 1);
+        total_size = (total_size + alignof(size_t) - 1) & ~(alignof(size_t) - 1);
         size_t free_ids_offset = total_size;
         total_size += new_cap * sizeof(size_t);
         size_t deleted_offset = total_size;
@@ -137,8 +135,7 @@ template <typename T>
 requires std::is_trivially_copyable_v<T>
 [[nodiscard]] Pool<T> Pool_make(size_t cap) {
     size_t total_size = cap * sizeof(T);
-    total_size =
-        (total_size + alignof(size_t) - 1) & ~(alignof(size_t) - 1);
+    total_size = (total_size + alignof(size_t) - 1) & ~(alignof(size_t) - 1);
     size_t free_ids_offset = total_size;
     total_size += cap * sizeof(size_t);
     size_t deleted_offset = total_size;
