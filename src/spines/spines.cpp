@@ -183,9 +183,6 @@ export struct SpinesContext {
 
             switch (state) {
 
-            std::cout << "cur state: " << (int)state 
-                      << " - " << token.line << ":" << token.column << "\n";
-
             case EXPECT_IDENTIFIER: {
                 if (might_be_value(strv.front())) {
                     tokens.destroy();
@@ -288,6 +285,10 @@ export struct SpinesContext {
                 if (strv.front() == ',') {
                     advance_loc(1);
                     state = AFTER_SEPARATOR;
+                } else if (strv.front() == '}') {
+                    append_token((TokenType)strv.front(), 1);
+                    advance_loc(1);
+                    state = AFTER_ARRAY_END;
                 } else {
                     state = EXPECT_IDENTIFIER;
                 }
