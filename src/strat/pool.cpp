@@ -73,7 +73,7 @@ struct Pool {
             if (next_data_index >= cap) return (size_t)-1;
 
             data[next_data_index] = val;
-            set_deleted(next_data_index, false);
+            _set_deleted(next_data_index, false);
             ++count;
 
             return next_data_index++;
@@ -81,32 +81,32 @@ struct Pool {
 
         size_t index = free_ids[--free_id_len];
         data[index] = val;
-        set_deleted(index, false);
+        _set_deleted(index, false);
         ++count;
 
         return index;
     }
 
     void remove(size_t index) {
-        if (index >= next_data_index || is_deleted(index)) return;
+        if (index >= next_data_index || _is_deleted(index)) return;
 
         free_ids[free_id_len++] = index;
 
-        set_deleted(index, true);
+        _set_deleted(index, true);
         --count;
     }
 
     [[nodiscard]] T get(size_t index) const {
-        if (index >= next_data_index || is_deleted(index)) return T{};
+        if (index >= next_data_index || _is_deleted(index)) return T{};
         return data[index];
     }
 
     [[nodiscard]] T *get_ptr(size_t index) {
-        if (index >= next_data_index || is_deleted(index)) return nullptr;
+        if (index >= next_data_index || _is_deleted(index)) return nullptr;
         return &data[index];
     }
     [[nodiscard]] const T *get_ptr(size_t index) const {
-        if (index >= next_data_index || is_deleted(index)) return nullptr;
+        if (index >= next_data_index || _is_deleted(index)) return nullptr;
         return &data[index];
     }
 
@@ -116,8 +116,7 @@ struct Pool {
         count = 0;
     }
 
-private:
-    inline void set_deleted(size_t index, bool v) {
+    inline void _set_deleted(size_t index, bool v) {
         u8 *bitset = (u8 *)(deleted);
         size_t byte_idx = index / 8;
         size_t bit_idx = index % 8;
@@ -125,7 +124,7 @@ private:
         bitset[byte_idx] =
             (bitset[byte_idx] & ~(1 << bit_idx)) | (v << bit_idx);
     }
-    inline bool is_deleted(size_t index) const {
+    inline bool _is_deleted(size_t index) const {
         const u8 *bitset = (const u8 *)(deleted);
         return (bitset[index / 8] >> (index % 8)) & 1;
     }

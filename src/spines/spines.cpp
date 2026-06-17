@@ -33,15 +33,15 @@ export struct SpinesParseError {
     size_t line = 1;
 };
 export struct SpinesContext {
-    struct Field {
-        char type; // 0 = int
-                   // 1 = float
-                   // 2 = string (size_t)
-        union {
-            int int_val;
-            float float_val;
-            size_t string_val;
-        };
+    enum FieldType : char {
+        FIELD_INT,
+        FIELD_FLOAT,
+        FIELD_STRING
+    };
+    union Field {
+        int int_val;
+        float float_val;
+        size_t string_val;
     };
     struct Identifier {
         size_t name_begin;
@@ -55,10 +55,13 @@ export struct SpinesContext {
 
     Arena arena{};
 
+    // Packed layout: identifiers -> field_vals -> field_types
+    //                -> identifier_names -> string_data
     Identifier *identifiers = nullptr;
     size_t identifiers_cap = 0;
 
-    Field *fields = nullptr;
+    FieldType *field_types = nullptr;
+    Field *field_vals = nullptr;
     size_t fields_cap = 0;
 
     char *identifier_names = nullptr;
@@ -84,14 +87,15 @@ export struct SpinesContext {
         }
         std::cout << "Fields - cap: " << fields_cap << "\n";
         for (size_t i = 0; i < fields_cap; ++i) {
-            Field p = fields[i];
+            Field p = field_vals[i];
+            FieldType t = field_types[i];
             std::string name = "int";
-            if (p.type == 1) name = "float";
-            if (p.type == 2) name = "string";
+            if (t == FIELD_FLOAT) name = "float";
+            if (t == FIELD_STRING) name = "string";
             std::cout << "\t " << i << ": [" << name << "]: ";
-            if (p.type == 0) std::cout << p.int_val;
-            if (p.type == 1) std::cout << p.float_val;
-            if (p.type == 2)
+            if (t == FIELD_INT) std::cout << p.int_val;
+            if (t == FIELD_FLOAT) std::cout << p.float_val;
+            if (t == FIELD_STRING)
                 std::cout << string_data + p.string_val;
             std::cout << "\n";
         }
@@ -299,18 +303,20 @@ export struct SpinesContext {
         }
 
         // =====================================================================
-        // Packed layout: identifiers -> field_vals -> identifier_names -> string_data
         size_t arena_size = identifiers_cap * sizeof(Identifier);
         arena_size = (arena_size + alignof(Field) - 1) & ~(alignof(Field) - 1);
         arena_size += fields_cap * sizeof(Field);
-        arena_size += identifier_names_size + string_data_size;
+        arena_size += fields_cap
+                      + identifier_names_size
+                      + string_data_size;
         arena.init(arena_size);
 
         identifiers =
             (Identifier *)arena.alloc(identifiers_cap * sizeof(Identifier),
                                       alignof(Identifier));
-        fields = (Field *)arena.alloc(fields_cap * sizeof(Field),
-                                             alignof(Field));
+        field_vals = (Field *)arena.alloc(fields_cap * sizeof(Field),
+                                          alignof(Field));
+        field_types = (FieldType *)arena.alloc(fields_cap, 1);
         identifier_names = (char *)arena.alloc(identifier_names_size, 1);
         string_data = (char *)arena.alloc(string_data_size, 1);
         size_t identifiers_offset = 0;
@@ -384,8 +390,9 @@ export struct SpinesContext {
                                              i_val);
 
                 if (res_i.ptr == strv.data() + strv.size()) {
-                    fields[fields_offset++] = Field{.type = 0,
-                                                 .int_val = i_val};
+                    field_types[fields_offset] = FIELD_INT;
+                    field_vals[fields_offset].int_val = i_val;
+                    ++fields_offset;
                     _assert(fields_offset <= fields_cap,
                             "fields_len out of bounds");
                 } else {
@@ -395,8 +402,9 @@ export struct SpinesContext {
                                                  f_val);
 
                     if (res_f.ptr == strv.data() + strv.size()) {
-                        fields[fields_offset++] = Field{.type = 1,
-                                                     .float_val = f_val};
+                        field_types[fields_offset] = FIELD_FLOAT;
+                        field_vals[fields_offset].float_val = f_val;
+                        ++fields_offset;
                         _assert(fields_offset <= fields_cap,
                                 "fields_len out of bounds");
                     } else {
@@ -419,8 +427,10 @@ export struct SpinesContext {
             case TOKEN_STRING: {
                 std::string_view strv(source.data() + token.index, token.len);
 
-                fields[fields_offset++] = Field{.type = 2,
-                                             .string_val = string_data_offset};
+
+                field_types[fields_offset] = FIELD_STRING;
+                field_vals[fields_offset].string_val = string_data_offset;
+                ++fields_offset;
                 _assert(fields_offset <= fields_cap,
                         "fields_len out of bounds");
 

@@ -26,11 +26,10 @@ int main() {
     std::chrono::duration<double, std::milli> elapsed_ms = end_time - start_time;
 
     if (!err.type) {
-        std::cout << "Lines: " << line_count << " : " << "Chars: " << char_count << "\n";
-        std::cout << "Identifiers: " << cxt.identifiers_cap << "\n";
-        std::cout << "Fields: " << cxt.fields_cap << "\n";
-        std::cout << "Time: " << elapsed_ms.count() << " ms.\n";
-        std::cout << "Mem: " << (float)cxt.arena.cap / 1024.0f << " kB.\n\n";
+        std::cout << "Source: " << (double)char_count / 1024.0f << " kB" << "\n";
+        std::cout << "Time: " << elapsed_ms.count() << " ms\n";
+        std::cout << "Mem: " << (float)cxt.arena.cap / 1024.0f << " kB\n\n";
+        std::cout << "Fields: " << cxt.fields_cap << "\n\n";
         // cxt.print_debug();
     }
     else {
