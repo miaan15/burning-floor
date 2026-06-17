@@ -478,17 +478,20 @@ export struct SpinesContextAccessor {
     bool error = false;
     SpinesContext *ref = nullptr;
     bool on_field_phase = false;
-    size_t index = 0;
+    size_t index = (size_t)-1;
 
     [[nodiscard]] SpinesContextAccessor pick(std::string_view name) {
         if (error) return SpinesContextAccessor{.error = true};
         if (on_field_phase) return SpinesContextAccessor{.error = true};
 
         _assert(ref, "Ref is null");
-        _assert(index < ref->identifiers_cap, "identifier_index out of bounds");
+        _assert(index == (size_t)-1 || index < ref->identifiers_cap,
+                "identifier_index out of bounds");
 
-        size_t search_begin = index + 1;
-        size_t search_end = index + ref->identifiers[index].parent_len;
+        size_t search_begin = index != (size_t)-1 ? index + 1 : 0;
+        size_t search_end = index != (size_t)-1 ?
+                                index + ref->identifiers[index].parent_len
+                                : ref->identifiers_cap;
         _assert(search_begin <= search_end, "search begin > end");
         _assert(search_end <= ref->identifiers_cap, "search_end out of bounds");
         for (size_t i = search_begin; i < search_end;) {
@@ -513,11 +516,12 @@ export struct SpinesContextAccessor {
         if (error) return SpinesContextAccessor{.error = true};
 
         _assert(ref, "Ref is null");
-        _assert(index
-                < (on_field_phase ? ref->fields_cap : ref->identifiers_cap),
+        _assert(index == (size_t)-1
+                || index <
+                    (on_field_phase ? ref->fields_cap : ref->identifiers_cap),
                 "index out of bounds");
 
-        size_t base_index = index;
+        size_t base_index = index != (size_t)-1 ? index : 0;
         if (!on_field_phase) {
             base_index = ref->identifiers[index].fields_begin;
             on_field_phase = true;
@@ -598,3 +602,11 @@ export struct SpinesContextAccessor {
         return std::nullopt;
     }
 };
+
+export
+[[nodiscard]] SpinesContextAccessor SpinesContext_access(SpinesContext *ref) {
+    return SpinesContextAccessor{.error = false,
+                                 .ref = ref,
+                                 .on_field_phase = false,
+                                 .index = (size_t)-1};
+}

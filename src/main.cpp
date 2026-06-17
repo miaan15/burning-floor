@@ -37,6 +37,18 @@ int main() {
                   << err.line << ":" << err.column << std::endl;
     }
 
+    std::cout << SpinesContext_access(&cxt).pick("renderer").pick("lighting").pick("shadow_map_resolution").as<float>().value_or(-67) << "\n"
+              << SpinesContext_access(&cxt).pick("renderer").pick("lighting").pick("shadow_map_resolution").pick(0).as<float>().value_or(-67) << "\n"
+              << SpinesContext_access(&cxt).pick("renderer").pick("lighting").pick("shadow_map_resolution").pick(1).as<float>().value_or(-67) << "\n"
+              << SpinesContext_access(&cxt).pick("renderer").pick("lighting").pick("pcf_samples").as<float>().value_or(-67) << "\n"
+              << SpinesContext_access(&cxt).pick("renderer").pick("lighting").pick(1).as<float>().value_or(-67) << "\n"
+              << *(int *)SpinesContext_access(&cxt).pick("renderer").pick("lighting").pick(1).raw() << "\n"
+              << SpinesContext_access(&cxt).pick("renderer").pick("post_processing").pick(3).as<std::string>().value_or("six-seven") << "\n"
+              << SpinesContext_access(&cxt).pick("renderer").pick("post_processing").pick(3).as<std::string_view>().value_or("six-seven") << "\n"
+              << SpinesContext_access(&cxt).pick("renderer").pick("post_processing").pick(3).as<char *>().value_or((char *)"six-seven") << "\n"
+              << SpinesContext_access(&cxt).pick("renderer").pick("post_processing").pick(3).as<const char *>().value_or((const char *)"six-seven") << "\n"
+              << (char *)SpinesContext_access(&cxt).pick("renderer").pick("post_processing").pick(3).raw() << "\n";
+
     cxt.destroy();
     return 0;
 }
