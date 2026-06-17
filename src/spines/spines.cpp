@@ -473,3 +473,128 @@ export struct SpinesContext {
         return SpinesParseError{};
     }
 };
+
+export struct SpinesContextAccessor {
+    bool error = false;
+    SpinesContext *ref = nullptr;
+    bool on_field_phase = false;
+    size_t index = 0;
+
+    [[nodiscard]] SpinesContextAccessor pick(std::string_view name) {
+        if (error) return SpinesContextAccessor{.error = true};
+        if (on_field_phase) return SpinesContextAccessor{.error = true};
+
+        _assert(ref, "Ref is null");
+        _assert(index < ref->identifiers_cap, "identifier_index out of bounds");
+
+        size_t search_begin = index + 1;
+        size_t search_end = index + ref->identifiers[index].parent_len;
+        _assert(search_begin <= search_end, "search begin > end");
+        _assert(search_end <= ref->identifiers_cap, "search_end out of bounds");
+        for (size_t i = search_begin; i < search_end;) {
+            auto cur_identifier = ref->identifiers[i];
+
+            if (name == std::string_view{
+                    ref->identifier_names + cur_identifier.name_begin,
+                    cur_identifier.name_len}) {
+                return SpinesContextAccessor{.error = error,
+                                             .ref = ref,
+                                             .on_field_phase = on_field_phase,
+                                             .index = i};
+            }
+
+            i += cur_identifier.parent_len;
+        }
+
+        return SpinesContextAccessor{.error = true};
+    }
+
+    [[nodiscard]] SpinesContextAccessor pick(size_t i) {
+        if (error) return SpinesContextAccessor{.error = true};
+
+        _assert(ref, "Ref is null");
+        _assert(index
+                < (on_field_phase ? ref->fields_cap : ref->identifiers_cap),
+                "index out of bounds");
+
+        size_t base_index = index;
+        if (!on_field_phase) {
+            base_index = ref->identifiers[index].fields_begin;
+            on_field_phase = true;
+        }
+
+        size_t dest_index = base_index + i;
+        if (dest_index >= ref->fields_cap)
+            return SpinesContextAccessor{.error = true};
+
+        return SpinesContextAccessor{.error = error,
+                                     .ref = ref,
+                                     .on_field_phase = on_field_phase,
+                                     .index = dest_index};
+    }
+
+    [[nodiscard]] void* raw() {
+        if (error) return nullptr;
+
+        size_t target_index =
+            on_field_phase ? index : ref->identifiers[index].fields_begin;
+
+        if (ref->field_types[target_index] == SpinesContext::FIELD_STRING) {
+            return &ref->string_data[ref->field_vals[target_index].string_val];
+        }
+        return &ref->field_vals[target_index];
+    }
+
+    template <typename T> [[nodiscard]] std::optional<T> as() {
+        if (error || !ref) return std::nullopt;
+
+        size_t target_index =
+            on_field_phase ? index : ref->identifiers[index].fields_begin;
+        auto type_id = ref->field_types[target_index];
+
+        void* ptr = raw();
+        if (!ptr) return std::nullopt;
+        if constexpr (std::is_arithmetic_v<T>) {
+            if (type_id == SpinesContext::FIELD_INT) {
+                return static_cast<T>(*static_cast<int*>(ptr));
+            } else if (type_id == SpinesContext::FIELD_FLOAT) {
+                return static_cast<T>(*static_cast<float*>(ptr));
+            }
+        }
+        else if constexpr (std::is_constructible_v<T, const char*>) {
+            if (type_id == SpinesContext::FIELD_STRING) {
+                return T(static_cast<const char*>(ptr));
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    template <typename T> [[nodiscard]] std::optional<T *> ptr_as() {
+        if (error || !ref) return std::nullopt;
+
+        size_t target_index =
+            on_field_phase ? index : ref->identifiers[index].fields_begin;
+        auto type_id = ref->field_types[target_index];
+
+        void* ptr = raw();
+        if (!ptr) return std::nullopt;
+        if constexpr (std::is_same_v<T, int>
+                      || std::is_same_v<T, const int>) {
+            if (type_id == SpinesContext::FIELD_INT)
+                return static_cast<T*>(ptr);
+        }
+        else if constexpr (std::is_same_v<T, float>
+                           || std::is_same_v<T, const float>) {
+            if (type_id == SpinesContext::FIELD_FLOAT)
+                return static_cast<T*>(ptr);
+        }
+        else if constexpr (std::is_same_v<T, char>
+                           || std::is_same_v<T, const char>) {
+            if (type_id == SpinesContext::FIELD_STRING)
+                return static_cast<T*>(ptr);
+        }
+
+        return std::nullopt;
+    }
+};
