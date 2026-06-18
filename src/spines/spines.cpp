@@ -32,6 +32,7 @@ export struct SpinesParseError {
     size_t column = 1;
     size_t line = 1;
 };
+
 export struct SpinesContext {
     enum FieldType : char {
         FIELD_INT,
