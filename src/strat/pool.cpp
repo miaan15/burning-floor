@@ -25,6 +25,7 @@ struct Pool {
 
         data = (Slot *)std::malloc(total_size);
         deleted = (void *)((u8 *)data + deleted_offset);
+        std::memset(deleted, 0, (cap + 7) / 8);
         next_index = bound_index = count = 0;
         this->cap = cap;
     }
@@ -39,15 +40,16 @@ struct Pool {
     void reserve(size_t new_cap) {
         if (new_cap <= cap) return;
 
-        size_t total_size = new_cap * sizeof(T);
+        size_t total_size = new_cap * sizeof(Slot);
         size_t deleted_offset = total_size;
         total_size += (new_cap + 7) / 8;
 
         Slot *new_data = (Slot *)std::malloc(total_size);
         void *new_deleted = (void *)((u8 *)new_data + deleted_offset);
+        std::memset(new_deleted, 0, (new_cap + 7) / 8);
 
         if (data) {
-            std::memcpy(new_data, data, bound_index * sizeof(T));
+            std::memcpy(new_data, data, bound_index * sizeof(Slot));
             std::memcpy(new_deleted, deleted,
                         ((bound_index + 7) / 8) * sizeof(bool));
 
@@ -69,7 +71,7 @@ struct Pool {
             next_index = data[next_index].next;
         }
 
-        data[index].val = val; 
+        data[index].val = val;
 
         _set_deleted(index, false);
         ++count;
@@ -81,6 +83,7 @@ struct Pool {
         if (index >= bound_index || _is_deleted(index)) return;
 
         data[index].next = next_index;
+        next_index = index;
 
         _set_deleted(index, true);
         --count;
@@ -88,22 +91,29 @@ struct Pool {
 
     [[nodiscard]] T get(size_t index) const {
         if (index >= bound_index || _is_deleted(index)) return T{};
-        return data[index];
+        return data[index].val;
     }
 
     [[nodiscard]] T *get_ptr(size_t index) {
         if (index >= bound_index || _is_deleted(index)) return nullptr;
-        return &data[index];
+        return &data[index].val;
     }
     [[nodiscard]] const T *get_ptr(size_t index) const {
         if (index >= bound_index || _is_deleted(index)) return nullptr;
-        return &data[index];
+        return &data[index].val;
     }
 
     void clear() {
         bound_index = 0;
         next_index = 0;
         count = 0;
+    }
+
+    [[nodiscard]] size_t mem_size() {
+        size_t total_size = cap * sizeof(Slot);
+        size_t deleted_offset = total_size;
+        total_size += (cap + 7) / 8;
+        return total_size;
     }
 
     inline void _set_deleted(size_t index, bool v) {
@@ -123,11 +133,13 @@ struct Pool {
 template <typename T>
 requires std::is_trivially_copyable_v<T>
 [[nodiscard]] Pool<T> Pool_make(size_t cap) {
-    size_t total_size = cap * sizeof(T);
+    using slot_t = typename Pool<T>::Slot;
+    size_t total_size = cap * sizeof(slot_t);
     size_t deleted_offset = total_size;
     total_size += (cap + 7) / 8;
 
-    T* data = (T *)std::malloc(total_size);
+    slot_t *data = (slot_t *)std::malloc(total_size);
+    std::memset((u8 *)data + deleted_offset, 0, (cap + 7) / 8);
 
     return Pool<T>{.data = data,
                    .deleted = (void *)((u8 *)data + deleted_offset),
