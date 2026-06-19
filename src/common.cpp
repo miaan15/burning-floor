@@ -5,10 +5,18 @@ export module common;
 export import assert;
 
 export import std;
+export import glm;
+export import sdl;
+export import box2d;
 
 export namespace stdf = std::filesystem;
 export namespace stdr = std::ranges;
 export namespace stdv = std::views;
+
+export namespace _ {}
+export using namespace _;
+
+export using namespace glm;
 
 export using size_t = std::size_t;
 
@@ -24,5 +32,6 @@ export using u32 = std::uint32_t;
 export using u64 = std::uint64_t;
 export using uptr = std::uintptr_t;
 
-export const stdf::path _project_dir = stdf::path{__FILE__}.parent_path() / "..";
-export const stdf::path _src_dir = _project_dir / "src";
+export const stdf::path root_path = stdf::path{__FILE__}.parent_path() / "..";
+export const stdf::path src_path = root_path / "src";
+export const stdf::path asset_path = root_path / "asset";
