@@ -4,7 +4,7 @@ export module spines;
 
 import common;
 import dyn_array;
-import arena;
+import allocator;
 
 export enum TokenType : u16 {
     TOKEN_IDENTIFIER = 256,
