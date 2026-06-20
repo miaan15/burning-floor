@@ -19,7 +19,7 @@ struct SpriteRender {
     SDL_FlipMode flip = SDL_FlipMode::SDL_FLIP_NONE;
 };
 
-constexpr size_t sprite_arena_size = 2 * 1024 * 1024; // 2MB
+constexpr size_t sprite_arena_size = 1024 * 1024; // 1MB
 Arena sprite_arena{};
 
 constexpr size_t max_texture = 32;
@@ -32,7 +32,7 @@ PoolWAlloc<Sprite, Arena> sprite_pool{};
 constexpr size_t max_sprite_render_num = max_sprite_num * 16;
 PoolWAlloc<SpriteRender, Arena> sprite_render_pool{};
 
-void init_sprite_list(size_t cap) {
+void init_sprite() {
     sprite_arena.init(sprite_arena_size);
 
     textures = (SDL_Texture **)sprite_arena.alloc(max_texture * sizeof(void *));

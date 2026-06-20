@@ -4,6 +4,7 @@ import context;
 
 import input;
 import player;
+import sprite;
 
 void logic_update();
 void frame_update();
@@ -30,6 +31,8 @@ int main() {
         std::cerr << "Failed: " << SDL_GetError() << std::endl;
         return -1;
     }
+
+    init_sprite();
 
     init_input();
 
@@ -72,6 +75,8 @@ int main() {
 
     destroy_player();
 
+    destroy_all_sprite();
+
     SDL_DestroyRenderer(global_context.renderer);
     SDL_DestroyWindow(global_context.window);
     SDL_Quit();
@@ -91,14 +96,7 @@ void render_update() {
     SDL_SetRenderDrawColor(global_context.renderer, 255, 255, 255, 255);
     SDL_RenderClear(global_context.renderer);
 
-    SDL_RenderTextureRotated(
-        global_context.renderer,
-        player_data.sprite.texture,
-        &player_data.sprite.src_rect,
-        &player_data.sprite.dest_rect,
-        0,
-        nullptr,
-        player_data.sprite.flip);
+    render_all_sprite();
 
     SDL_RenderPresent(global_context.renderer);
 }
