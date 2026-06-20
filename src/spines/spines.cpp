@@ -75,7 +75,7 @@ export struct SpinesContext {
     }
 
     void print_debug() {
-        std::cout << "idents - cap: " << idents_cap << "\n";
+        std::cout << "idents - cap: " << idents_cap << std::endl;
         for (size_t i = 0; i < idents_cap; ++i) {
             Ident p = idents[i];
             if (p.name_begin != (size_t)-1) {
@@ -84,19 +84,18 @@ export struct SpinesContext {
                     << std::string_view(ident_names + p.name_begin, p.name_len)
                     << "]: "
                     << "fields " << p.fields_begin << " - " << p.fields_len
-                    << " | parent of " << p.parent_len << "\n";
-            }
-            else {
+                    << " | parent of " << p.parent_len << std::endl;
+            } else {
                 std::cout
                     << "\t " << i << ": [."
                     << p.name_len
                     << "]: "
                     << "fields " << p.fields_begin << " - " << p.fields_len
-                    << " | parent of " << p.parent_len << "\n";
+                    << " | parent of " << p.parent_len << std::endl;
             }
         }
 
-        std::cout << "Fields - cap: " << fields_cap << "\n";
+        std::cout << "Fields - cap: " << fields_cap << std::endl;
         for (size_t i = 0; i < fields_cap; ++i) {
             Field p = field_vals[i];
             FieldType t = field_types[i];
@@ -108,7 +107,7 @@ export struct SpinesContext {
             if (t == FIELD_FLOAT) std::cout << p.float_val;
             if (t == FIELD_STRING)
                 std::cout << string_data + p.string_val;
-            std::cout << "\n";
+            std::cout << std::endl;
         }
     }
 
@@ -141,13 +140,15 @@ export struct SpinesContext {
             if (token == TOKEN_NUM || token == TOKEN_STR) ++fields_cap;
             if (token == TOKEN_STR) string_data_size += len + 1;
 
-            tokens.append(Token{token, len, cur_index});
+            if (add_token)
+                tokens.append(Token{token, len, cur_index});
             cur_index += len;
             last = token;
             strv.remove_prefix(len);
         };
         auto lexer_err = [&](SpinesParseErr::Type type) {
             auto [column, line] = cal_pos(cur_index);
+            tokens.destroy();
             return SpinesParseErr{type, column, line};
         };
 
@@ -162,10 +163,30 @@ export struct SpinesContext {
         // , 011010000
 
         while (true) {
+            while (!strv.empty()) {
+                size_t first_non_space = strv.find_first_not_of(" \t\n\r");
+                if (first_non_space == std::string_view::npos) {
+                    strv = {};
+                    break;
+                }
+                cur_index += first_non_space;
+                strv.remove_prefix(first_non_space);
+
+                if (strv.starts_with("//")) {
+                    size_t end_cmt = strv.find('\n');
+                    if (end_cmt == std::string_view::npos) {
+                        strv = {};
+                        break;
+                    }
+                    cur_index += end_cmt + 1;
+                    strv.remove_prefix(end_cmt + 1);
+
+                    continue;
+                }
+
+                break;
+            }
             if (strv.empty()) break;
-            size_t first_non_space = strv.find_first_not_of(" \t\n\r");
-            cur_index += first_non_space;
-            if (first_non_space == std::string_view::npos) break;
 
             char front = strv.front();
 
@@ -179,7 +200,7 @@ export struct SpinesContext {
             }
 
             // Number
-            if (std::isdigit(front)) {
+            if (std::isdigit(front) || front == '-') {
                 if (last == TOKEN_IDENT
                     || last == TOKEN_NUM || last == TOKEN_STR)
                     return lexer_err(SpinesParseErr::ERR_SYNTAX);
@@ -205,7 +226,7 @@ export struct SpinesContext {
             case '=':
                 if (last != TOKEN_IDENT)
                     return lexer_err(SpinesParseErr::ERR_SYNTAX);
-                move_forward(false, front, 1);
+                move_forward(true, front, 1);
             break;
 
             case '.':
@@ -226,24 +247,37 @@ export struct SpinesContext {
                 if (last == TOKEN_IDENT
                     || last == TOKEN_NUM || last == TOKEN_STR)
                     return lexer_err(SpinesParseErr::ERR_SYNTAX);
+
+                ++cur_index;
+                strv.remove_prefix(1);
+
                 size_t len = strv.find_first_of("\'\"\n\r");
                 if (strv[len] != '\"')
                     return lexer_err(SpinesParseErr::ERR_SYNTAX);
-                move_forward(true, TOKEN_STR, len + 1);
+                move_forward(true, TOKEN_STR, len);
+
+                ++cur_index;
+                strv.remove_prefix(1);
             } break;
             case '\'': {
                 if (last == TOKEN_IDENT
                     || last == TOKEN_NUM || last == TOKEN_STR)
                     return lexer_err(SpinesParseErr::ERR_SYNTAX);
+
+                ++cur_index;
+                strv.remove_prefix(1);
+
                 size_t len = strv.find_first_of("\'\"\n\r");
                 if (strv[len] != '\'')
                     return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                move_forward(true, TOKEN_STR, len);
 
-                move_forward(true, TOKEN_STR, len + 1);
+                ++cur_index;
+                strv.remove_prefix(1);
             } break;
 
             default:
-                return {}; // err
+                return lexer_err(SpinesParseErr::ERR_SYNTAX);
             break;
             }
         }
@@ -279,7 +313,6 @@ export struct SpinesContext {
         std::stack<IdentStackEntry, std::vector<IdentStackEntry>>
             ident_stack{ident_stack_container};
 
-        size_t next_id_ident = 0;
         size_t next_ident = 0;
 
         auto handle_end_ident = [&]() {
@@ -299,18 +332,15 @@ export struct SpinesContext {
             Ident *cur_ident = &idents[ident_stack.top().ident];
             cur_ident->fields_len += old_fields_len;
             cur_ident->parent_len += old_parent_len;
-
-            next_id_ident = ident_stack.top().next_id_ident;
         };
         auto handle_new_ident = [&]() {
-            ident_stack.push({next_ident, next_id_ident});
+            ident_stack.push({next_ident, 0});
             ++next_ident;
-            next_id_ident = 0;
         };
 
         SpinesParseErr::Type err_type = SpinesParseErr::NONE;
         size_t err_index = 0;
-        u8 just_after_ident = 0;
+        u8 just_after_assign_ident = 0;
         for (Token token : tokens) {
             switch (token.type) {
 
@@ -332,24 +362,20 @@ export struct SpinesContext {
                         "ident_names_offset out of bounds");
 
                 handle_new_ident();
-
-                just_after_ident = 2; // hack
             } break;
 
             case TOKEN_ID_IDENT: {
                 idents[idents_offset++] = Ident{
                     .name_begin = (size_t)-1,
-                    .name_len = next_id_ident,
+                    .name_len = ident_stack.top().next_id_ident,
                     .fields_begin = fields_offset,
                     .fields_len = 0,
                     .parent_len = 1};
                 _assert(idents_offset <= idents_cap,
                         "idents_len out of bounds");
 
+                ++ident_stack.top().next_id_ident;
                 handle_new_ident();
-                ++next_id_ident;
-
-                just_after_ident = 2; // hack
             } break;
 
             case TOKEN_NUM: {
@@ -390,22 +416,53 @@ export struct SpinesContext {
                 _assert(ident_stack.top().ident < idents_offset,
                         "ident_stack.top() out of bounds.");
                 ++idents[ident_stack.top().ident].fields_len;
-                if (just_after_ident) handle_end_ident();
+                if (just_after_assign_ident) handle_end_ident();
+            } break;
+
+            case TOKEN_STR: {
+                std::string_view strv(src.data() + token.index, token.len);
+
+                field_types[fields_offset] = FIELD_STRING;
+                field_vals[fields_offset].string_val = string_data_offset;
+                ++fields_offset;
+                _assert(fields_offset <= fields_cap,
+                        "fields_len out of bounds");
+
+                for (char c : strv) {
+                    string_data[string_data_offset++] = c;
+                }
+                string_data[string_data_offset++] = '\0';
+                _assert(string_data_offset <= string_data_size,
+                        "string_data_offset out of bounds");
+
+                _assert(!ident_stack.empty(),
+                        "ident stack should not be empty yet");
+                _assert(ident_stack.top().ident < idents_offset,
+                        "ident_stack.top() out of bounds.");
+                ++idents[ident_stack.top().ident].fields_len;
+                if (just_after_assign_ident) handle_end_ident();
             } break;
 
             case '}': {
                 handle_end_ident();
             } break;
 
+            case '=': {
+                just_after_assign_ident = 2;
+            } break;
+
             default: {
-                err_type = SpinesParseErr::ERR_FIELD_VAL;
+                err_type = SpinesParseErr::ERR_SYNTAX;
                 err_index = token.index;
                 goto _ERROR_PATH;
             } break;
 
             }
+
+            if (just_after_assign_ident > 0) --just_after_assign_ident;
         }
 
+        tokens.destroy();
         return {};
 
     _ERROR_PATH:
