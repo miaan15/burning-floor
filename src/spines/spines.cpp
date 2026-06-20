@@ -7,44 +7,44 @@ import dyn_array;
 import allocator;
 
 export enum TokenType : u16 {
-    TOKEN_IDENTIFIER = 256,
-    TOKEN_NUMBER,
-    TOKEN_STRING
+    // all the ascii can be token type
+    TOKEN_IDENT = 256,
+    TOKEN_ID_IDENT,
+    TOKEN_NUM,
+    TOKEN_STR
 };
+
 export struct Token {
     u16 type = 0;
     size_t len = 0;
-
     size_t index = 0;
-    size_t column = 1;
-    size_t line = 1;
 };
 
-export struct SpinesParseError {
-    enum Type {
+export struct SpinesParseErr {
+    enum Type { // FIXME: name
         NONE = 0,
-        INVALID_IDENTIFIER_NAME,
-        INVALID_FIELD_VAL,
-        INVALID_SYNTAX
+        ERR_IDENT,
+        ERR_FIELD_VAL,
+        ERR_SYNTAX,
     } type = NONE;
-
-    size_t index = 0;
     size_t column = 1;
     size_t line = 1;
 };
 
 export struct SpinesContext {
-    enum FieldType : char {
+    enum FieldType : u8 {
         FIELD_INT,
         FIELD_FLOAT,
         FIELD_STRING
     };
+
     union Field {
         int int_val;
         float float_val;
         size_t string_val;
     };
-    struct Identifier {
+
+    struct Ident {
         size_t name_begin;
         size_t name_len;
 
@@ -55,18 +55,17 @@ export struct SpinesContext {
     };
 
     Arena arena{};
+    // Packed layout: idents -> field_vals -> field_types
+    //                -> ident_names -> string_data
+    Ident *idents = nullptr;
+    size_t idents_cap = 0;
 
-    // Packed layout: identifiers -> field_vals -> field_types
-    //                -> identifier_names -> string_data
-    Identifier *identifiers = nullptr;
-    size_t identifiers_cap = 0;
-
-    FieldType *field_types = nullptr;
     Field *field_vals = nullptr;
+    FieldType *field_types = nullptr;
     size_t fields_cap = 0;
 
-    char *identifier_names = nullptr;
-    size_t identifier_names_size = 0;
+    char *ident_names = nullptr;
+    size_t ident_names_size = 0;
 
     char *string_data = nullptr;
     size_t string_data_size = 0;
@@ -76,16 +75,27 @@ export struct SpinesContext {
     }
 
     void print_debug() {
-        std::cout << "Identifiers - cap: " << identifiers_cap << "\n";
-        for (size_t i = 0; i < identifiers_cap; ++i) {
-            Identifier p = identifiers[i];
-            std::cout
-                << "\t " << i << ": ["
-                << std::string_view(identifier_names + p.name_begin, p.name_len)
-                << "]: "
-                << "fields " << p.fields_begin << " - " << p.fields_len
-                << " | parent of " << p.parent_len << "\n";
+        std::cout << "idents - cap: " << idents_cap << "\n";
+        for (size_t i = 0; i < idents_cap; ++i) {
+            Ident p = idents[i];
+            if (p.name_begin != (size_t)-1) {
+                std::cout
+                    << "\t " << i << ": ["
+                    << std::string_view(ident_names + p.name_begin, p.name_len)
+                    << "]: "
+                    << "fields " << p.fields_begin << " - " << p.fields_len
+                    << " | parent of " << p.parent_len << "\n";
+            }
+            else {
+                std::cout
+                    << "\t " << i << ": [."
+                    << p.name_len
+                    << "]: "
+                    << "fields " << p.fields_begin << " - " << p.fields_len
+                    << " | parent of " << p.parent_len << "\n";
+            }
         }
+
         std::cout << "Fields - cap: " << fields_cap << "\n";
         for (size_t i = 0; i < fields_cap; ++i) {
             Field p = field_vals[i];
@@ -102,288 +112,248 @@ export struct SpinesContext {
         }
     }
 
-    SpinesParseError parse(std::string_view source) {
+    SpinesParseErr parse(std::string_view src) {
+        auto cal_pos = [&](size_t index) -> std::pair<size_t, size_t> {
+            size_t column = 1, line = 1;
+            for (size_t i = 0; i < index; ++i) {
+                if (src[i] == '\n') {
+                    line++;
+                    column = 1;
+                } else {
+                    column++;
+                }
+            }
+            return {column, line};
+        };
+
         DynArray<Token> tokens;
 
         // LEXER
         // =====================================================================
         {
-        enum {
-            EXPECT_IDENTIFIER,
-            EXPECT_FIELD_OR_ARR,
-            AFTER_IDENTIFIER,
-            AFTER_FIELD,
-            AFTER_SEPARATOR,
-            AFTER_ARRAY_BEGIN,
-            AFTER_ARRAY_END,
-        } state = EXPECT_IDENTIFIER;
+        std::string_view strv = src;
+        size_t cur_index = 0;
+        u16 last = 0;
 
-        std::string_view strv = source;
-        Token token;
+        auto move_forward = [&](bool add_token, u16 token, size_t len) {
+            if (token == TOKEN_IDENT || token == TOKEN_ID_IDENT) ++idents_cap;
+            if (token == TOKEN_IDENT) ident_names_size += len;
+            if (token == TOKEN_NUM || token == TOKEN_STR) ++fields_cap;
+            if (token == TOKEN_STR) string_data_size += len + 1;
 
-        auto advance_loc = [&](size_t v) {
-            token.index += v;
-            token.column += v;
-            strv.remove_prefix(v);
+            tokens.append(Token{token, len, cur_index});
+            cur_index += len;
+            last = token;
+            strv.remove_prefix(len);
         };
-        auto append_token = [&](TokenType type, size_t len) {
-            if (type == TOKEN_IDENTIFIER) {
-                ++identifiers_cap;
-                identifier_names_size += len;
-            }
-            if (type == TOKEN_NUMBER || type == TOKEN_STRING) ++fields_cap;
-            if (type == TOKEN_STRING) string_data_size += len + 1;
-            token.type = type;
-            token.len = len;
-            tokens.append(token);
+        auto lexer_err = [&](SpinesParseErr::Type type) {
+            auto [column, line] = cal_pos(cur_index);
+            return SpinesParseErr{type, column, line};
         };
 
-        auto get_identifier_len = [&](std::string_view strv) -> size_t {
-            size_t len = 0;
-            for (auto c : strv) {
-                if (std::isalnum((unsigned char)c) || c == '_') ++len;
-                else break;
-            }
-            return len;
-        };
+        //   INS{}=.,0
+        // I 011110011
+        // N 000111111
+        // S 000111111
+        // { 100000000
+        // } 011010010
+        // = 100000000
+        // . 000111111
+        // , 011010000
 
-        auto might_be_value = [&](char c) -> bool {
-            return std::isdigit(c) || c == '-' || c == '\"';
-        };
-
-        auto handle_remove_spaces =
-            [&](bool *line_breaked) -> bool {
-                if (strv.empty()) return true;
-                auto s_front = strv.front();
-                if (s_front == '\n' || s_front == '\r'
-                    || s_front == '\t' || s_front == ' ') {
-                    constexpr size_t TAB_WIDTH = 4;
-                    size_t removed = 0;
-                    for (auto c : strv) {
-                        if (c == '\n') {
-                            ++token.line;
-                            token.column = 1;
-                            *line_breaked = true;
-                        } else if (c == '\t') {
-                            token.column +=
-                                TAB_WIDTH - ((token.column - 1) % TAB_WIDTH);
-                        } else if (c == ' ') {
-                            ++token.column;
-                        } else {
-                            break;
-                        }
-                        ++token.index;
-                        ++removed;
-                    }
-                    strv.remove_prefix(removed);
-                    if (strv.empty()) return true;
-                }
-                return false;
-            };
-
-        // =====================================================================
         while (true) {
-            bool line_breaked = false;
-            if (handle_remove_spaces(&line_breaked)) break;
+            if (strv.empty()) break;
+            size_t first_non_space = strv.find_first_not_of(" \t\n\r");
+            cur_index += first_non_space;
+            if (first_non_space == std::string_view::npos) break;
 
-            switch (state) {
+            char front = strv.front();
 
-            case EXPECT_IDENTIFIER: {
-                if (might_be_value(strv.front())) {
-                    tokens.destroy();
-                    return SpinesParseError{
-                        SpinesParseError::INVALID_IDENTIFIER_NAME,
-                        token.index, token.column, token.line
-                    };
-                }
+            // Ident
+            if (std::isalpha(front) || front == '_') {
+                if (last == TOKEN_IDENT || last == '=')
+                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                size_t len = strv.find_first_of(",.{} \t\n\r");
+                move_forward(true, TOKEN_IDENT, len);
+                continue;
+            }
 
-                size_t len = get_identifier_len(strv);
-                append_token(TOKEN_IDENTIFIER, len);
-                advance_loc(len);
-                state = AFTER_IDENTIFIER;
+            // Number
+            if (std::isdigit(front)) {
+                if (last == TOKEN_IDENT
+                    || last == TOKEN_NUM || last == TOKEN_STR)
+                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                size_t len = strv.find_first_of(",.{} \t\n\r");
+                move_forward(true, TOKEN_NUM, len);
+                continue;
+            }
+
+            switch (front) {
+            case '{':
+                if (last != TOKEN_IDENT)
+                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                move_forward(false, front, 1);
+            break;
+
+            case '}':
+                if (last != TOKEN_NUM && last != TOKEN_STR
+                    && last != '}' && last != ',')
+                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                move_forward(true, front, 1);
+            break;
+
+            case '=':
+                if (last != TOKEN_IDENT)
+                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                move_forward(false, front, 1);
+            break;
+
+            case '.':
+                if (last == TOKEN_IDENT
+                    || last == TOKEN_NUM || last == TOKEN_STR)
+                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                move_forward(true, TOKEN_ID_IDENT, 2);
+            break;
+
+            case ',':
+                if (last != TOKEN_NUM && last != TOKEN_STR && last != '}')
+                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                move_forward(false, front, 1);
+            break;
+
+            // String
+            case '\"': {
+                if (last == TOKEN_IDENT
+                    || last == TOKEN_NUM || last == TOKEN_STR)
+                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                size_t len = strv.find_first_of("\'\"\n\r");
+                if (strv[len] != '\"')
+                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                move_forward(true, TOKEN_STR, len + 1);
+            } break;
+            case '\'': {
+                if (last == TOKEN_IDENT
+                    || last == TOKEN_NUM || last == TOKEN_STR)
+                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                size_t len = strv.find_first_of("\'\"\n\r");
+                if (strv[len] != '\'')
+                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+
+                move_forward(true, TOKEN_STR, len + 1);
             } break;
 
-            case EXPECT_FIELD_OR_ARR: {
-                switch (strv.front()) {
-                case '{': {
-                    append_token((TokenType)strv.front(), 1);
-                    advance_loc(1);
-                    state = AFTER_ARRAY_BEGIN;
-                } break;
-                case '\"': {
-                    advance_loc(1);
-                    size_t end_string_i = strv.find_first_of("\"");
-                    if (end_string_i != 0)
-                        append_token(TOKEN_STRING, end_string_i);
-                    advance_loc(end_string_i + 1);
-                    state = AFTER_FIELD;
-                } break;
-                default: {
-                    if (might_be_value(strv.front())) {
-                        size_t num_len = strv.find_first_of(" \t\n\r,}");
-                        append_token(TOKEN_NUMBER, num_len);
-                        advance_loc(num_len);
-                        state = AFTER_FIELD;
-                    } else {
-                        tokens.destroy();
-                        return SpinesParseError{
-                            SpinesParseError::INVALID_FIELD_VAL,
-                            token.index, token.column, token.line
-                        };
-                    }
-                } break;
-                }
-            } break;
-
-            case AFTER_IDENTIFIER: {
-                if (strv.front() != '=' && strv.front() != '{') {
-                    tokens.destroy();
-                    return SpinesParseError{
-                        SpinesParseError::INVALID_SYNTAX,
-                        token.index, token.column, token.line
-                    };
-                }
-                if (strv.front() == '=') advance_loc(1);
-                state = EXPECT_FIELD_OR_ARR;
-            } break;
-
-            case AFTER_FIELD: {
-                switch (strv.front()) {
-                case ',':
-                    advance_loc(1);
-                    state = AFTER_SEPARATOR;
-                    break;
-                case '}':
-                    append_token((TokenType)strv.front(), 1);
-                    advance_loc(1);
-                    state = AFTER_ARRAY_END;
-                    break;
-                default:
-                    state = EXPECT_IDENTIFIER;
-                    break;
-                }
-            } break;
-
-            case AFTER_SEPARATOR: {
-                if (might_be_value(strv.front())) {
-                    state = EXPECT_FIELD_OR_ARR;
-                } else if (strv.front() == '}') {
-                    advance_loc(1);
-                    state = AFTER_ARRAY_END;
-                } else {
-                    state = EXPECT_IDENTIFIER;
-                }
-            } break;
-
-            case AFTER_ARRAY_BEGIN: {
-                if (might_be_value(strv.front())) {
-                    state = EXPECT_FIELD_OR_ARR;
-                } else if (strv.front() == '}') {
-                    advance_loc(1);
-                    state = AFTER_ARRAY_END;
-                } else {
-                    state = EXPECT_IDENTIFIER;
-                }
-            } break;
-
-            case AFTER_ARRAY_END: {
-                if (strv.front() == ',') {
-                    advance_loc(1);
-                    state = AFTER_SEPARATOR;
-                } else if (strv.front() == '}') {
-                    append_token((TokenType)strv.front(), 1);
-                    advance_loc(1);
-                    state = AFTER_ARRAY_END;
-                } else {
-                    state = EXPECT_IDENTIFIER;
-                }
-            } break;
-
+            default:
+                return {}; // err
+            break;
             }
         }
         }
 
+        // MEMORY
         // =====================================================================
-        size_t arena_size = identifiers_cap * sizeof(Identifier);
+        size_t arena_size = idents_cap * sizeof(Ident);
         arena_size = (arena_size + alignof(Field) - 1) & ~(alignof(Field) - 1);
         arena_size += fields_cap * sizeof(Field);
         arena_size += fields_cap
-                      + identifier_names_size
+                      + ident_names_size
                       + string_data_size;
         arena.init(arena_size);
 
-        identifiers =
-            (Identifier *)arena.alloc(identifiers_cap * sizeof(Identifier),
-                                      alignof(Identifier));
+        idents = (Ident *)arena.alloc(idents_cap * sizeof(Ident),
+                                      alignof(Ident));
         field_vals = (Field *)arena.alloc(fields_cap * sizeof(Field),
                                           alignof(Field));
         field_types = (FieldType *)arena.alloc(fields_cap, 1);
-        identifier_names = (char *)arena.alloc(identifier_names_size, 1);
+        ident_names = (char *)arena.alloc(ident_names_size, 1);
         string_data = (char *)arena.alloc(string_data_size, 1);
-        size_t identifiers_offset = 0;
+        size_t idents_offset = 0;
         size_t fields_offset = 0;
-        size_t identifier_names_offset = 0;
+        size_t ident_names_offset = 0;
         size_t string_data_offset = 0;
 
+        // PARSER
         // =====================================================================
-        std::vector<size_t> identifier_stack_container;
-        identifier_stack_container.reserve(tokens.len);
-        std::stack<size_t, std::vector<size_t>>
-            identifier_stack{identifier_stack_container};
+        struct IdentStackEntry { size_t ident; size_t next_id_ident; };
+        std::vector<IdentStackEntry> ident_stack_container;
+        ident_stack_container.reserve(idents_cap);
+        std::stack<IdentStackEntry, std::vector<IdentStackEntry>>
+            ident_stack{ident_stack_container};
 
-        size_t next_identifier_id = 0;
+        size_t next_id_ident = 0;
+        size_t next_ident = 0;
 
-        auto handle_go_out_of_identifier = [&]() {
-            if (identifier_stack.empty()) return;
+        auto handle_end_ident = [&]() {
+            if (ident_stack.empty()) return;
 
-            _assert(identifier_stack.top() < identifiers_offset,
-                    "identifier_stack.top() out of bounds.");
-            Identifier old_identifier = identifiers[identifier_stack.top()];
-            size_t old_fields_len = old_identifier.fields_len;
-            size_t old_parent_len = old_identifier.parent_len;
+            _assert(ident_stack.top().ident < idents_offset,
+                    "ident_stack.top() out of bounds.");
+            Ident old_ident = idents[ident_stack.top().ident];
+            size_t old_fields_len = old_ident.fields_len;
+            size_t old_parent_len = old_ident.parent_len;
 
-            identifier_stack.pop();
+            ident_stack.pop();
 
-            if (identifier_stack.empty()) return;
-            _assert(identifier_stack.top() < identifiers_offset,
-                    "identifier_stack.top() out of bounds.");
-            Identifier *cur_identifier = &identifiers[identifier_stack.top()];
-            cur_identifier->fields_len += old_fields_len;
-            cur_identifier->parent_len += old_parent_len;
+            if (ident_stack.empty()) return;
+            _assert(ident_stack.top().ident < idents_offset,
+                    "ident_stack.top() out of bounds.");
+            Ident *cur_ident = &idents[ident_stack.top().ident];
+            cur_ident->fields_len += old_fields_len;
+            cur_ident->parent_len += old_parent_len;
+
+            next_id_ident = ident_stack.top().next_id_ident;
+        };
+        auto handle_new_ident = [&]() {
+            ident_stack.push({next_ident, next_id_ident});
+            ++next_ident;
+            next_id_ident = 0;
         };
 
-        // =====================================================================
-        u8 just_after_identifier = 0; // this should just be a flag-bool but
-                                      // I need a "hack" so it is u8
+        SpinesParseErr::Type err_type = SpinesParseErr::NONE;
+        size_t err_index = 0;
+        u8 just_after_ident = 0;
         for (Token token : tokens) {
             switch (token.type) {
 
-            case TOKEN_IDENTIFIER: {
-                identifiers[identifiers_offset++] = Identifier{
-                    .name_begin = identifier_names_offset,
+            case TOKEN_IDENT: {
+                idents[idents_offset++] = Ident{
+                    .name_begin = ident_names_offset,
                     .name_len = token.len,
                     .fields_begin = fields_offset,
                     .fields_len = 0,
                     .parent_len = 1};
-                _assert(identifiers_offset <= identifiers_cap,
-                        "identifiers_len out of bounds");
+                _assert(idents_offset <= idents_cap,
+                        "idents_len out of bounds");
 
                 for (size_t i = 0; i < token.len; ++i) {
-                    identifier_names[identifier_names_offset + i] =
-                        source[token.index + i];
+                    ident_names[ident_names_offset + i] = src[token.index + i];
                 }
-                identifier_names_offset += token.len;
-                _assert(identifier_names_offset <= identifier_names_size,
-                        "identifier_names_offset out of bounds");
+                ident_names_offset += token.len;
+                _assert(ident_names_offset <= ident_names_size,
+                        "ident_names_offset out of bounds");
 
-                identifier_stack.push(next_identifier_id);
-                ++next_identifier_id;
+                handle_new_ident();
 
-                just_after_identifier = 2; // hack
+                just_after_ident = 2; // hack
             } break;
 
-            case TOKEN_NUMBER: {
-                std::string_view strv(source.data() + token.index, token.len);
+            case TOKEN_ID_IDENT: {
+                idents[idents_offset++] = Ident{
+                    .name_begin = (size_t)-1,
+                    .name_len = next_id_ident,
+                    .fields_begin = fields_offset,
+                    .fields_len = 0,
+                    .parent_len = 1};
+                _assert(idents_offset <= idents_cap,
+                        "idents_len out of bounds");
+
+                handle_new_ident();
+                ++next_id_ident;
+
+                just_after_ident = 2; // hack
+            } break;
+
+            case TOKEN_NUM: {
+                std::string_view strv(src.data() + token.index, token.len);
 
                 int i_val;
                 auto res_i = std::from_chars(strv.data(),
@@ -409,205 +379,44 @@ export struct SpinesContext {
                         _assert(fields_offset <= fields_cap,
                                 "fields_len out of bounds");
                     } else {
-                        tokens.destroy();
-                        return SpinesParseError{
-                            SpinesParseError::INVALID_FIELD_VAL,
-                            token.index, token.column, token.line
-                        };
+                        err_type = SpinesParseErr::ERR_FIELD_VAL;
+                        err_index = token.index;
+                        goto _ERROR_PATH;
                     }
                 }
 
-                _assert(!identifier_stack.empty(),
-                        "identifier stack should not be empty yet");
-                _assert(identifier_stack.top() < identifiers_offset,
-                        "identifier_stack.top() out of bounds.");
-                ++identifiers[identifier_stack.top()].fields_len;
-                if (just_after_identifier) handle_go_out_of_identifier();
-            } break;
-
-            case TOKEN_STRING: {
-                std::string_view strv(source.data() + token.index, token.len);
-
-
-                field_types[fields_offset] = FIELD_STRING;
-                field_vals[fields_offset].string_val = string_data_offset;
-                ++fields_offset;
-                _assert(fields_offset <= fields_cap,
-                        "fields_len out of bounds");
-
-                for (char c : strv) {
-                    string_data[string_data_offset++] = c;
-                }
-                string_data[string_data_offset++] = '\0';
-                _assert(string_data_offset <= string_data_size,
-                        "string_data_offset out of bounds");
-
-                _assert(!identifier_stack.empty(),
-                        "identifier stack should not be empty yet");
-                _assert(identifier_stack.top() < identifiers_offset,
-                        "identifier_stack.top() out of bounds.");
-                ++identifiers[identifier_stack.top()].fields_len;
-                if (just_after_identifier) handle_go_out_of_identifier();
-            } break;
-
-            case '{': {
+                _assert(!ident_stack.empty(),
+                        "ident stack should not be empty yet");
+                _assert(ident_stack.top().ident < idents_offset,
+                        "ident_stack.top() out of bounds.");
+                ++idents[ident_stack.top().ident].fields_len;
+                if (just_after_ident) handle_end_ident();
             } break;
 
             case '}': {
-                handle_go_out_of_identifier();
+                handle_end_ident();
             } break;
 
             default: {
-                tokens.destroy();
-                return SpinesParseError{
-                    SpinesParseError::INVALID_SYNTAX,
-                    token.index, token.column, token.line
-                };
+                err_type = SpinesParseErr::ERR_FIELD_VAL;
+                err_index = token.index;
+                goto _ERROR_PATH;
             } break;
 
             }
-
-            if (just_after_identifier > 0) --just_after_identifier;
         }
 
+        return {};
+
+    _ERROR_PATH:
         tokens.destroy();
-        return SpinesParseError{};
+        arena.destroy();
+        idents = nullptr;
+        field_vals = nullptr;
+        field_types = nullptr;
+        ident_names = string_data = nullptr;
+        idents_cap = fields_cap = ident_names_size = string_data_size = 0;
+        auto [column, line] = cal_pos(err_index);
+        return SpinesParseErr{err_type, column, line};
     }
 };
-
-export struct SpinesContextAccessor {
-    bool error = false;
-    SpinesContext *ref = nullptr;
-    bool on_field_phase = false;
-    size_t index = (size_t)-1;
-
-    [[nodiscard]] SpinesContextAccessor pick(std::string_view name) {
-        if (error) return SpinesContextAccessor{.error = true};
-        if (on_field_phase) return SpinesContextAccessor{.error = true};
-
-        _assert(ref, "Ref is null");
-        _assert(index == (size_t)-1 || index < ref->identifiers_cap,
-                "identifier_index out of bounds");
-
-        size_t search_begin = index != (size_t)-1 ? index + 1 : 0;
-        size_t search_end = index != (size_t)-1 ?
-                                index + ref->identifiers[index].parent_len
-                                : ref->identifiers_cap;
-        _assert(search_begin <= search_end, "search begin > end");
-        _assert(search_end <= ref->identifiers_cap, "search_end out of bounds");
-        for (size_t i = search_begin; i < search_end;) {
-            auto cur_identifier = ref->identifiers[i];
-
-            if (name == std::string_view{
-                    ref->identifier_names + cur_identifier.name_begin,
-                    cur_identifier.name_len}) {
-                return SpinesContextAccessor{.error = error,
-                                             .ref = ref,
-                                             .on_field_phase = on_field_phase,
-                                             .index = i};
-            }
-
-            i += cur_identifier.parent_len;
-        }
-
-        return SpinesContextAccessor{.error = true};
-    }
-
-    [[nodiscard]] SpinesContextAccessor pick(size_t i) {
-        if (error) return SpinesContextAccessor{.error = true};
-
-        _assert(ref, "Ref is null");
-        _assert(index == (size_t)-1
-                || index <
-                    (on_field_phase ? ref->fields_cap : ref->identifiers_cap),
-                "index out of bounds");
-
-        size_t base_index = index != (size_t)-1 ? index : 0;
-        if (!on_field_phase) {
-            base_index = ref->identifiers[index].fields_begin;
-            on_field_phase = true;
-        }
-
-        size_t dest_index = base_index + i;
-        if (dest_index >= ref->fields_cap)
-            return SpinesContextAccessor{.error = true};
-
-        return SpinesContextAccessor{.error = error,
-                                     .ref = ref,
-                                     .on_field_phase = on_field_phase,
-                                     .index = dest_index};
-    }
-
-    [[nodiscard]] void* raw() {
-        if (error) return nullptr;
-
-        size_t target_index =
-            on_field_phase ? index : ref->identifiers[index].fields_begin;
-
-        if (ref->field_types[target_index] == SpinesContext::FIELD_STRING) {
-            return &ref->string_data[ref->field_vals[target_index].string_val];
-        }
-        return &ref->field_vals[target_index];
-    }
-
-    template <typename T> [[nodiscard]] std::optional<T> as() {
-        if (error || !ref) return std::nullopt;
-
-        size_t target_index =
-            on_field_phase ? index : ref->identifiers[index].fields_begin;
-        auto type_id = ref->field_types[target_index];
-
-        void* ptr = raw();
-        if (!ptr) return std::nullopt;
-        if constexpr (std::is_arithmetic_v<T>) {
-            if (type_id == SpinesContext::FIELD_INT) {
-                return static_cast<T>(*static_cast<int*>(ptr));
-            } else if (type_id == SpinesContext::FIELD_FLOAT) {
-                return static_cast<T>(*static_cast<float*>(ptr));
-            }
-        }
-        else if constexpr (std::is_constructible_v<T, const char*>) {
-            if (type_id == SpinesContext::FIELD_STRING) {
-                return T(static_cast<const char*>(ptr));
-            }
-        }
-
-        return std::nullopt;
-    }
-
-    template <typename T> [[nodiscard]] std::optional<T *> ptr_as() {
-        if (error || !ref) return std::nullopt;
-
-        size_t target_index =
-            on_field_phase ? index : ref->identifiers[index].fields_begin;
-        auto type_id = ref->field_types[target_index];
-
-        void* ptr = raw();
-        if (!ptr) return std::nullopt;
-        if constexpr (std::is_same_v<T, int>
-                      || std::is_same_v<T, const int>) {
-            if (type_id == SpinesContext::FIELD_INT)
-                return static_cast<T*>(ptr);
-        }
-        else if constexpr (std::is_same_v<T, float>
-                           || std::is_same_v<T, const float>) {
-            if (type_id == SpinesContext::FIELD_FLOAT)
-                return static_cast<T*>(ptr);
-        }
-        else if constexpr (std::is_same_v<T, char>
-                           || std::is_same_v<T, const char>) {
-            if (type_id == SpinesContext::FIELD_STRING)
-                return static_cast<T*>(ptr);
-        }
-
-        return std::nullopt;
-    }
-};
-
-export
-[[nodiscard]] SpinesContextAccessor SpinesContext_access(SpinesContext *ref) {
-    return SpinesContextAccessor{.error = false,
-                                 .ref = ref,
-                                 .on_field_phase = false,
-                                 .index = (size_t)-1};
-}
