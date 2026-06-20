@@ -4,6 +4,7 @@ export module player;
 
 import common;
 import context;
+import system;
 import input;
 import sprite;
 
@@ -20,30 +21,13 @@ struct PlayerData {
     vec2 move_dir{0, -1};
     vec2 facing_dir{0, -1};
 
-    size_t sprite_render = 0;
+    size_t sprite_drawer = 0;
 };
 
 PlayerDef player_def{};
 PlayerData player_data{};
 
 void init_player() {
-    // SPRITE
-    // =========================================================================
-    const stdf::path player_tex_path = asset_path / "img/img_player.png";
-    SDL_Surface *surf = SDL_LoadPNG(player_tex_path.c_str());
-
-    SDL_Texture *player_tex =
-        SDL_CreateTextureFromSurface(global_context.renderer, surf);
-    SDL_SetTextureScaleMode(player_tex, SDL_ScaleMode::SDL_SCALEMODE_NEAREST);
-    SDL_DestroySurface(surf);
-    if (!player_tex) {
-        std::cerr << "Failed load surface: " << player_tex_path << "\n"
-                  << "Error: " << SDL_GetError() << std::endl;
-        return;
-    }
-    size_t tex = make_texture(player_tex);
-    size_t sprite = make_sprite(tex, SDL_FRect{0, 0, 32, 32});
-
     // DEF
     // =========================================================================
     // FIXME
@@ -53,7 +37,11 @@ void init_player() {
     // =========================================================================
     // FIXME
     player_data.pos = {0, 0};
-    player_data.sprite_render = make_sprite_render(sprite);
+
+    size_t tex = texture_sys.load("img/img_player.png");
+    size_t sprite = sprite_sys.make_sprite(texture_sys.get(tex),
+                                           SDL_FRect{0, 0, 32, 32});
+    player_data.sprite_drawer = sprite_sys.make_drawer(sprite);
 }
 
 void logic_update_player() {
@@ -79,7 +67,7 @@ void frame_update_player() {
 }
 
 void render_update_player() {
-    update_sprite_render(player_data.sprite_render, player_data.pos);
+    sprite_sys.update_drawer(player_data.sprite_drawer, player_data.pos);
 }
 
 void destroy_player() {

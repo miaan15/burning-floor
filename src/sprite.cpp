@@ -6,127 +6,120 @@ import common;
 import context;
 import pool;
 
-export namespace _ {
-
 struct Sprite {
-    size_t tex = 0;
+    SDL_Texture *tex = nullptr;
     SDL_FRect rect{};
 };
 
-struct SpriteRender {
+struct SpriteDrawer {
     size_t sprite = 0;
     SDL_FRect drect{};
     SDL_FlipMode flip = SDL_FlipMode::SDL_FLIP_NONE;
 };
 
-constexpr size_t sprite_arena_size = 1024 * 1024; // 1MB
-Arena sprite_arena{};
+export struct SpriteSys {
+    constexpr static size_t arena_cap = 1024 * 1024; // 1MB
+    Arena arena{};
 
-constexpr size_t max_texture = 32;
-SDL_Texture **textures = nullptr;
-size_t textures_len = 0;
+    size_t sprite_cap = 0;
+    size_t drawer_cap = 0;
 
-constexpr size_t max_sprite_num = max_texture * 16;
-PoolWAlloc<Sprite, Arena> sprite_pool{};
+    Sprite *sprites = nullptr;
+    size_t sprites_len = 0;
+    PoolWAlloc<SpriteDrawer, Arena> drawer_pool;
 
-constexpr size_t max_sprite_render_num = max_sprite_num * 16;
-PoolWAlloc<SpriteRender, Arena> sprite_render_pool{};
+    void init(size_t sprite_cap = 256, size_t drawer_cap = -1) {
+        this->sprite_cap = sprite_cap;
+        this->drawer_cap = drawer_cap != -1 ? drawer_cap :sprite_cap * 16;
 
-void init_sprite() {
-    sprite_arena.init(sprite_arena_size);
+        arena.init(arena_cap);
 
-    textures = (SDL_Texture **)sprite_arena.alloc(max_texture * sizeof(void *));
-    textures_len = 0;
+        sprites = (Sprite *)arena.alloc(this->sprite_cap * sizeof(Sprite));
+        drawer_pool.init(this->drawer_cap, &arena);
 
-    sprite_pool.init(max_sprite_num, &sprite_arena);
+        ++sprites_len; // stub;
+    }
 
-    sprite_render_pool.init(max_sprite_render_num, &sprite_arena);
+    void destroy() {
+        arena.destroy();
+    }
 
-    // 0 default case
-    sprite_pool.add({});
-}
+    size_t make_sprite(SDL_Texture *tex, const SDL_FRect &rect) {
+        if (sprites_len >= sprite_cap) return 0;
+        size_t index = sprites_len++;
+        sprites[index] = Sprite{tex, rect};
+        return index;
+    }
 
-size_t make_texture(SDL_Texture *tex) {
-    size_t index = textures_len++;
-    if (index == max_texture) return 0;
-    textures[index] = tex;
-    return index;
-}
+    Sprite get_sprite(size_t index) const { 
+        if (index >= sprites_len) return Sprite{};
+        return sprites[index];
+    }
+    Sprite *get_sprite_ptr(size_t index) {
+        if (index >= sprites_len) return nullptr;
+        return &sprites[index];
+    }
 
-size_t make_sprite(size_t tex, const SDL_FRect& rect) {
-    return sprite_pool.add({.tex = tex, .rect = rect});
-}
+    size_t make_drawer(size_t sprite) {
+        return drawer_pool.add({.sprite = sprite});
+    }
 
-void destroy_sprite(size_t index) {
-    sprite_pool.remove(index);
-}
+    void remove_drawer(size_t index) {
+        drawer_pool.remove(index);
+    }
 
-Sprite *get_sprite(size_t index) {
-    return sprite_pool.get_ptr(index);
-}
+    SpriteDrawer get_drawer(size_t index) const {
+        return drawer_pool.get(index);
+    }
+    SpriteDrawer *get_drawer_ptr(size_t index) {
+        return drawer_pool.get_ptr(index);
+    }
 
-void update_sprite_render(size_t index, vec2 pos,
-                          bool flip = false, float scale = 1) {
-    SpriteRender *entry = sprite_render_pool.get_ptr(index);
-    Sprite sprite = sprite_pool.get(entry->sprite);
+    void update_drawer(size_t index, vec2 pos,
+                       bool flip = false, float scale = 1) {
+        if (!drawer_pool.check(index)) return;
+        SpriteDrawer *drawer = drawer_pool.get_ptr(index);
+        Sprite sprite = get_sprite(drawer->sprite);
 
-    entry->drect.w = sprite.rect.w * global_context.pixel_size * scale;
-    entry->drect.h = sprite.rect.h * global_context.pixel_size * scale;
-    entry->drect.x = pos.x * global_context.pixel_size;
-    entry->drect.y = global_context.window_height
-                     - pos.y * global_context.pixel_size
-                     - entry->drect.h;
-    entry->flip = SDL_FlipMode::SDL_FLIP_NONE;
-}
+        drawer->drect.w = sprite.rect.w * pixel_size * scale;
+        drawer->drect.h = sprite.rect.h * pixel_size * scale;
 
-size_t make_sprite_render(size_t sprite_id, vec2 pos = vec2{0, 0},
-                          bool flip = false, float scale = 1) {
-    Sprite sprite = sprite_pool.get(sprite_id);
-    size_t index = sprite_render_pool.add({.sprite = sprite_id});
-    update_sprite_render(index, pos, flip, scale);
-    return index;
-}
+        drawer->drect.x = pos.x * pixel_size;
+        drawer->drect.y = window_height
+            - pos.y * pixel_size
+            - drawer->drect.h;
 
-SpriteRender *get_sprite_render(size_t index) {
-    return sprite_render_pool.get_ptr(index);
-}
+        drawer->flip = flip ? SDL_FlipMode::SDL_FLIP_HORIZONTAL
+                                : SDL_FlipMode::SDL_FLIP_NONE;
+    }
 
-void render_sprite(size_t index) {
-    SpriteRender sprite_render = sprite_render_pool.get(index);
-    Sprite sprite = sprite_pool.get(sprite_render.sprite);
-
-    SDL_RenderTextureRotated(
-        global_context.renderer,
-        textures[sprite.tex],
-        &sprite.rect,
-        &sprite_render.drect,
-        0,
-        nullptr,
-        sprite_render.flip);
-}
-
-void render_all_sprite() {
-    for (auto sprite_render : sprite_render_pool) {
-        Sprite sprite = sprite_pool.get(sprite_render.sprite);
+    void render_sprite(size_t index) {
+        if (!drawer_pool.check(index)) return;
+        SpriteDrawer drawer = drawer_pool.get(index);
+        Sprite sprite = get_sprite(drawer.sprite);
 
         SDL_RenderTextureRotated(
-            global_context.renderer,
-            textures[sprite.tex],
+            renderer,
+            sprite.tex,
             &sprite.rect,
-            &sprite_render.drect,
+            &drawer.drect,
             0,
             nullptr,
-            sprite_render.flip);
-    }
-}
-
-void destroy_all_sprite() {
-    for (size_t i = 0; i < textures_len; ++i) {
-        SDL_DestroyTexture(textures[i]);
+            drawer.flip);
     }
 
-    sprite_pool.destroy();
-    sprite_render_pool.destroy();
-}
+    void render_all_sprites() {
+        for (auto drawer : drawer_pool) {
+            Sprite sprite = get_sprite(drawer.sprite);
 
-}
+            SDL_RenderTextureRotated(
+                renderer,
+                sprite.tex,
+                &sprite.rect,
+                &drawer.drect,
+                0,
+                nullptr,
+                drawer.flip);
+        }
+    }
+};

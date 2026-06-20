@@ -1,20 +1,21 @@
 import common;
 
 import context;
+import system;
 
 import input;
-import player;
 import sprite;
+import player;
 
 void logic_update();
 void frame_update();
 void render_update();
 
 int main() {
-    global_context.window_width = 1280;
-    global_context.window_height = 720;
-    global_context.tps = 50;
-    global_context.pixel_size = 3;
+    window_width = 1280;
+    window_height = 720;
+    tps = 50;
+    pixel_size = 3;
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::cerr << "Failed: " << SDL_GetError() << std::endl;
@@ -23,16 +24,17 @@ int main() {
 
     if (!SDL_CreateWindowAndRenderer(
             "BurningFloor",
-            global_context.window_width,
-            global_context.window_height,
+            window_width,
+            window_height,
             0,
-            &global_context.window,
-            &global_context.renderer)) {
+            &window,
+            &renderer)) {
         std::cerr << "Failed: " << SDL_GetError() << std::endl;
         return -1;
     }
 
-    init_sprite();
+    texture_sys.init(asset_path, 32);
+    sprite_sys.init(64);
 
     init_input();
 
@@ -48,7 +50,7 @@ int main() {
 
         if (dt > 1) dt = 1; // still need 1 fps
 
-        global_context.cur_time_sec += dt;
+        cur_time_sec += dt;
         logic_update_accumulator += dt;
 
         SDL_Event event;
@@ -59,13 +61,13 @@ int main() {
         }
         pump_input();
 
-        const double logic_update_dt = (double)1.0 / global_context.tps;
+        const double logic_update_dt = (double)1.0 / tps;
         while (logic_update_accumulator >= logic_update_dt) {
             logic_update();
             logic_update_accumulator -= logic_update_dt;
         }
 
-        global_context.logic_update_alpha =
+        logic_update_alpha =
             logic_update_accumulator / logic_update_dt;
 
         frame_update();
@@ -75,10 +77,11 @@ int main() {
 
     destroy_player();
 
-    destroy_all_sprite();
+    texture_sys.destroy();
+    sprite_sys.destroy();
 
-    SDL_DestroyRenderer(global_context.renderer);
-    SDL_DestroyWindow(global_context.window);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
     SDL_Quit();
 }
 
@@ -93,10 +96,10 @@ void frame_update() {
 void render_update() {
     render_update_player();
 
-    SDL_SetRenderDrawColor(global_context.renderer, 255, 255, 255, 255);
-    SDL_RenderClear(global_context.renderer);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderClear(renderer);
 
-    render_all_sprite();
+    sprite_sys.render_all_sprites();
 
-    SDL_RenderPresent(global_context.renderer);
+    SDL_RenderPresent(renderer);
 }
