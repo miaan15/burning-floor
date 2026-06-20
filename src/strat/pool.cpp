@@ -27,8 +27,8 @@ struct Pool {
         total_size += (cap + 7) / 8;
 
         data = (Slot *)std::malloc(total_size);
+        std::memset(data, 0, total_size);
         deleted = (void *)((u8 *)data + deleted_offset);
-        std::memset(deleted, 0, (cap + 7) / 8);
         next_index = bound_index = count = 0;
         this->cap = cap;
     }
@@ -48,8 +48,8 @@ struct Pool {
         total_size += (new_cap + 7) / 8;
 
         Slot *new_data = (Slot *)std::malloc(total_size);
+        std::memset(data, 0, total_size);
         void *new_deleted = (void *)((u8 *)new_data + deleted_offset);
-        std::memset(new_deleted, 0, (new_cap + 7) / 8);
 
         if (data) {
             std::memcpy(new_data, data, bound_index * sizeof(Slot));
@@ -196,7 +196,7 @@ requires std::is_trivially_copyable_v<T>
     total_size += (cap + 7) / 8;
 
     slot_t *data = (slot_t *)std::malloc(total_size);
-    std::memset((u8 *)data + deleted_offset, 0, (cap + 7) / 8);
+    std::memset(data, 0, total_size);
 
     return Pool<T>{.data = data,
                    .deleted = (void *)((u8 *)data + deleted_offset),
@@ -233,8 +233,8 @@ struct PoolWAlloc {
 
         this->alloc = alloc;
         data = (Slot *)alloc->alloc(total_size);
+        std::memset(data, 0, total_size);
         deleted = (void *)((u8 *)data + deleted_offset);
-        std::memset(deleted, 0, (cap + 7) / 8);
         next_index = bound_index = count = 0;
         this->cap = cap;
     }
@@ -255,8 +255,8 @@ struct PoolWAlloc {
         total_size += (new_cap + 7) / 8;
 
         Slot *new_data = (Slot *)alloc->alloc(total_size);
+        std::memset(data, 0, total_size);
         void *new_deleted = (void *)((u8 *)new_data + deleted_offset);
-        std::memset(new_deleted, 0, (new_cap + 7) / 8);
 
         if (data) {
             std::memcpy(new_data, data, bound_index * sizeof(Slot));
@@ -409,7 +409,7 @@ requires std::is_trivially_copyable_v<T>
     total_size += (cap + 7) / 8;
 
     slot_t *data = (slot_t *)alloc->alloc(total_size);
-    std::memset((u8 *)data + deleted_offset, 0, (cap + 7) / 8);
+    std::memset(data, 0, total_size);
 
     return PoolWAlloc<T, Alloc>{
         .alloc = alloc,
