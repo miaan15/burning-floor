@@ -3,7 +3,7 @@ module;
 export module pool;
 
 import common;
-import allocator;
+export import allocator;
 
 export template <typename T>
 requires std::is_trivially_copyable_v<T>
@@ -131,6 +131,60 @@ struct Pool {
         const u8 *bitset = (const u8 *)(deleted);
         return (bitset[index / 8] >> (index % 8)) & 1;
     }
+
+    template <bool Const>
+    struct _BaseIterator {
+        using PoolPtr = std::conditional_t<Const, const Pool*, Pool*>;
+        using ValueRef = std::conditional_t<Const, const T&, T&>;
+        using ValuePtr = std::conditional_t<Const, const T*, T*>;
+
+        PoolPtr pool;
+        size_t index;
+
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = T;
+        using difference_type = std::ptrdiff_t;
+        using pointer = ValuePtr;
+        using reference = ValueRef;
+
+        _BaseIterator(PoolPtr p, size_t idx) : pool(p), index(idx) {
+            skip_deleted();
+        }
+
+        void skip_deleted() {
+            while (index < pool->bound_index && pool->_is_deleted(index)) {
+                ++index;
+            }
+        }
+
+        _BaseIterator& operator++() {
+            ++index;
+            skip_deleted();
+            return *this;
+        }
+        _BaseIterator operator++(int) {
+            _BaseIterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        ValueRef operator*() const { return pool->data[index].val; }
+        ValuePtr operator->() const { return &pool->data[index].val; }
+
+        bool operator==(const _BaseIterator& other) const {
+            return index == other.index;
+        }
+        bool operator!=(const _BaseIterator& other) const {
+            return index != other.index;
+        }
+    };
+    using iterator = _BaseIterator<false>;
+    using const_iterator = _BaseIterator<true>;
+
+    iterator begin() { return iterator(this, 0); }
+    iterator end() { return iterator(this, bound_index); }
+    const_iterator begin() const { return const_iterator(this, 0); }
+    const_iterator end() const { return const_iterator(this, bound_index); }
 };
 
 template <typename T>
@@ -218,6 +272,8 @@ struct PoolWAlloc {
     }
 
     size_t add(const T& val) {
+        if (next_index >= cap) return 0;
+
         size_t index = next_index;
 
         if (next_index == bound_index) {
@@ -259,6 +315,10 @@ struct PoolWAlloc {
         return &data[index].val;
     }
 
+    [[nodiscard]] bool check(size_t index) const {
+        return index < bound_index && !_is_deleted(index);
+    }
+
     void clear() {
         bound_index = 0;
         next_index = 0;
@@ -284,11 +344,65 @@ struct PoolWAlloc {
         const u8 *bitset = (const u8 *)(deleted);
         return (bitset[index / 8] >> (index % 8)) & 1;
     }
+
+    template <bool Const>
+    struct _BaseIterator {
+        using PoolPtr = std::conditional_t<Const, const PoolWAlloc*, PoolWAlloc*>;
+        using ValueRef = std::conditional_t<Const, const T&, T&>;
+        using ValuePtr = std::conditional_t<Const, const T*, T*>;
+
+        PoolPtr pool;
+        size_t index;
+
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = T;
+        using difference_type = std::ptrdiff_t;
+        using pointer = ValuePtr;
+        using reference = ValueRef;
+
+        _BaseIterator(PoolPtr p, size_t idx) : pool(p), index(idx) {
+            skip_deleted();
+        }
+
+        void skip_deleted() {
+            while (index < pool->bound_index && pool->_is_deleted(index)) {
+                ++index;
+            }
+        }
+
+        _BaseIterator& operator++() {
+            ++index;
+            skip_deleted();
+            return *this;
+        }
+        _BaseIterator operator++(int) {
+            _BaseIterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        ValueRef operator*() const { return pool->data[index].val; }
+        ValuePtr operator->() const { return &pool->data[index].val; }
+
+        bool operator==(const _BaseIterator& other) const {
+            return index == other.index;
+        }
+        bool operator!=(const _BaseIterator& other) const {
+            return index != other.index;
+        }
+    };
+    using iterator = _BaseIterator<false>;
+    using const_iterator = _BaseIterator<true>;
+
+    iterator begin() { return iterator(this, 0); }
+    iterator end() { return iterator(this, bound_index); }
+    const_iterator begin() const { return const_iterator(this, 0); }
+    const_iterator end() const { return const_iterator(this, bound_index); }
 };
 
 template <typename T, AllocConcept Alloc>
 requires std::is_trivially_copyable_v<T>
-[[nodiscard]] PoolWAlloc<T, Alloc> Pool_make(size_t cap, Alloc *alloc) {
+[[nodiscard]] PoolWAlloc<T, Alloc> PoolWAlloc_make(size_t cap, Alloc *alloc) {
     using slot_t = typename PoolWAlloc<T, Alloc>::Slot;
     size_t total_size = cap * sizeof(slot_t);
     size_t deleted_offset = total_size;
