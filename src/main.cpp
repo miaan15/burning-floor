@@ -14,6 +14,8 @@ void frame_update();
 void render_update();
 
 int main() {
+    init_context();
+
     window_width = 1280;
     window_height = 720;
     tps = 50;

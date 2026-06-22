@@ -23,12 +23,16 @@ export struct TextureSys {
 
         path = root_path / path;
         SDL_Surface *surf = SDL_LoadPNG(path.c_str());
-        SDL_Texture *tex =
-            SDL_CreateTextureFromSurface(renderer, surf);
+        if (!surf) {
+            std::cerr << "Failed load surface: " << path << "\n"
+                      << "Error: " << SDL_GetError() << std::endl;
+            return 0;
+        }
+        SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
         SDL_SetTextureScaleMode(tex, SDL_ScaleMode::SDL_SCALEMODE_NEAREST);
         SDL_DestroySurface(surf);
         if (!tex) {
-            std::cerr << "Failed load: " << path << "\n"
+            std::cerr << "Failed load texture: " << path << "\n"
                       << "Error: " << SDL_GetError() << std::endl;
             return 0;
         }

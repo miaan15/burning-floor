@@ -38,10 +38,23 @@ void init_player() {
     // FIXME
     player_data.pos = {0, 0};
 
-    size_t tex = texture_sys.load("img/img_player.png");
-    size_t sprite = sprite_sys.make_sprite(texture_sys.get(tex),
-                                           SDL_FRect{0, 0, 32, 32});
-    player_data.sprite_drawer = sprite_sys.make_drawer(sprite);
+    auto tex_path = asset_data_cxt
+                        .accessor().at("texture").offset(0)
+                        .as<std::string_view>().value_or("");
+    size_t tex = texture_sys.load(tex_path);
+    auto sprite_accessor = asset_data_cxt.accessor().at("sprite").at("player");
+    for (size_t i = 0; i < sprite_accessor.child_len(); ++i) {
+        auto p = sprite_accessor.at(i);
+        size_t t = p.offset(0).as<size_t>().value_or(0);
+        float x = p.offset(1).as<float>().value_or(0);
+        float y = p.offset(2).as<float>().value_or(0);
+        float w = p.offset(3).as<float>().value_or(0);
+        float h = p.offset(4).as<float>().value_or(0);
+
+        size_t sprite = sprite_sys.make_sprite(texture_sys.get(t)
+                                               , SDL_FRect{x, y, w, h});
+    }
+    player_data.sprite_drawer = sprite_sys.make_drawer(1);
 }
 
 void logic_update_player() {

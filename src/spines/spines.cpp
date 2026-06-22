@@ -26,6 +26,7 @@ export struct SpinesParseErr {
         ERR_IDENT,
         ERR_FIELD_VAL,
         ERR_SYNTAX,
+        ERR_ALREADY_INIT,
     } type = NONE;
     size_t column = 1;
     size_t line = 1;
@@ -111,7 +112,10 @@ export struct SpinesContext {
         }
     }
 
-    SpinesParseErr parse(std::string_view src) {
+    SpinesParseErr init(std::string_view src) {
+        if (arena.buffer)
+            return SpinesParseErr{SpinesParseErr::ERR_ALREADY_INIT};
+
         auto cal_pos = [&](size_t index) -> std::pair<size_t, size_t> {
             size_t column = 1, line = 1;
             for (size_t i = 0; i < index; ++i) {
@@ -475,5 +479,175 @@ export struct SpinesContext {
         idents_cap = fields_cap = ident_names_size = string_data_size = 0;
         auto [column, line] = cal_pos(err_index);
         return SpinesParseErr{err_type, column, line};
+    }
+
+    struct Accessor {
+        bool err = false;
+        SpinesContext *ref = nullptr;
+
+        bool field_accessing = false;
+        size_t index = (size_t)-1;
+
+        [[nodiscard]] Accessor at(std::string_view name) const {
+            if (err) return Accessor{.err = true};
+            if (field_accessing) return Accessor{.err = true};
+
+            _assert(ref, "ref is null");
+            _assert(index == (size_t)-1 || index < ref->idents_cap,
+                    "ident_index out of bounds");
+
+            size_t s_begin = index != (size_t)-1 ? index + 1 : 0;
+            size_t s_end = index != (size_t)-1 ?
+                                index + ref->idents[index].parent_len
+                                : ref->idents_cap;
+            _assert(s_begin <= s_end, "search begin > end");
+            _assert(s_end <= ref->idents_cap, "search_end out of bounds");
+            for (size_t i = s_begin; i < s_end;) {
+                Ident ident = ref->idents[i];
+                if (ident.name_begin == (size_t)-1) continue;
+                if (name ==
+                        std::string_view{ref->ident_names + ident.name_begin,
+                                         ident.name_len}) {
+                    return Accessor{err, ref, field_accessing, i};
+                }
+
+                i += ident.parent_len;
+            }
+
+            return Accessor{.err = true};
+        }
+
+        [[nodiscard]] Accessor at(size_t id) const {
+            if (err) return Accessor{.err = true};
+            if (field_accessing) return Accessor{.err = true};
+
+            _assert(ref, "ref is null");
+            _assert(index == (size_t)-1 || index < ref->idents_cap,
+                    "ident_index out of bounds");
+
+            size_t s_begin = index != (size_t)-1 ? index + 1 : 0;
+            size_t s_end = index != (size_t)-1 ?
+                                index + ref->idents[index].parent_len
+                                : ref->idents_cap;
+            _assert(s_begin <= s_end, "search begin > end");
+            _assert(s_end <= ref->idents_cap, "search_end out of bounds");
+            for (size_t i = s_begin; i < s_end;) {
+                Ident ident = ref->idents[i];
+                if (ident.name_begin != (size_t)-1) continue;
+                if (id == ident.name_len) {
+                    return Accessor{err, ref, field_accessing, i};
+                }
+
+                i += ident.parent_len;
+            }
+
+            return Accessor{.err = true};
+        }
+
+        [[nodiscard]] size_t child_len() const {
+            if (field_accessing) return 0;
+
+            _assert(ref, "ref is null");
+            _assert(index == (size_t)-1 || index < ref->idents_cap,
+                    "ident_index out of bounds");
+
+            if (index == (size_t)-1) return ref->idents_cap;
+            return ref->idents[index].parent_len - 1;
+        }
+
+        [[nodiscard]] Accessor offset(size_t i) const {
+            if (err) return Accessor{.err = true};
+
+            _assert(ref, "ref is null");
+            _assert(index == (size_t)-1
+                    || index < (field_accessing ? ref->fields_cap
+                                                  : ref->idents_cap),
+                    "index out of bounds");
+
+            size_t base_index =
+                index != (size_t)-1 ?
+                    (field_accessing ? index : ref->idents[index].fields_begin)
+                    : 0;
+
+            size_t dest_index = base_index + i;
+            if (dest_index > ref->fields_cap) return Accessor{.err = true};
+
+            return Accessor{err, ref, true, dest_index};
+        }
+
+        [[nodiscard]] void* raw() const {
+            if (err) return nullptr;
+
+            _assert(ref, "ref is null");
+
+            size_t target =
+                field_accessing ? index : ref->idents[index].fields_begin;
+
+            if (ref->field_types[target] == FIELD_STRING) {
+                return &ref->string_data[ref->field_vals[target].string_val];
+            }
+            return &ref->field_vals[target];
+        }
+
+        template <typename T> [[nodiscard]] std::optional<T> as() const {
+            if (err || !ref) return std::nullopt;
+
+            _assert(ref, "ref is null");
+
+            size_t target =
+                field_accessing ? index : ref->idents[index].fields_begin;
+            auto type_id = ref->field_types[target];
+
+            void* ptr = raw();
+            if (!ptr) return std::nullopt;
+            if constexpr (std::is_arithmetic_v<T>) {
+                if (type_id == SpinesContext::FIELD_INT) {
+                    return static_cast<T>(*static_cast<int*>(ptr));
+                } else if (type_id == SpinesContext::FIELD_FLOAT) {
+                    return static_cast<T>(*static_cast<float*>(ptr));
+                }
+            }
+            else if constexpr (std::is_constructible_v<T, const char*>) {
+                if (type_id == SpinesContext::FIELD_STRING) {
+                    return T(static_cast<const char*>(ptr));
+                }
+            }
+
+            return std::nullopt;
+        }
+
+        template <typename T> [[nodiscard]] std::optional<T *> ptr_as() const {
+            if (err|| !ref) return std::nullopt;
+
+            _assert(ref, "ref is null");
+
+            size_t target =
+                field_accessing ? index : ref->idents[index].fields_begin;
+            auto type_id = ref->field_types[target];
+
+            void* ptr = raw();
+            if (!ptr) return std::nullopt;
+            if constexpr (std::is_same_v<T, int>
+                    || std::is_same_v<T, const int>) {
+                if (type_id == SpinesContext::FIELD_INT)
+                    return static_cast<T*>(ptr);
+            }
+            else if constexpr (std::is_same_v<T, float>
+                    || std::is_same_v<T, const float>) {
+                if (type_id == SpinesContext::FIELD_FLOAT)
+                    return static_cast<T*>(ptr);
+            }
+            else if constexpr (std::is_same_v<T, char>
+                    || std::is_same_v<T, const char>) {
+                if (type_id == SpinesContext::FIELD_STRING)
+                    return static_cast<T*>(ptr);
+            }
+
+            return std::nullopt;
+        }
+    };
+
+    [[nodiscard]] Accessor accessor() {
+        return Accessor{false, this, false, (size_t)-1};
     }
 };
