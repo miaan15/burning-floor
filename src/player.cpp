@@ -37,22 +37,19 @@ void init_player() {
     // =========================================================================
     // FIXME
     player_data.pos = {0, 0};
-
-    auto tex_path = asset_data_cxt
-                        .accessor().at("texture").offset(0)
-                        .as<std::string_view>().value_or("");
+    auto tex_path = asset_data_cxt.into("texture").get_as<std::string_view>(0);
     size_t tex = texture_sys.load(tex_path);
-    auto sprite_accessor = asset_data_cxt.accessor().at("sprite").at("player");
-    for (size_t i = 0; i < sprite_accessor.child_len(); ++i) {
-        auto p = sprite_accessor.at(i);
-        size_t t = p.offset(0).as<size_t>().value_or(0);
-        float x = p.offset(1).as<float>().value_or(0);
-        float y = p.offset(2).as<float>().value_or(0);
-        float w = p.offset(3).as<float>().value_or(0);
-        float h = p.offset(4).as<float>().value_or(0);
+    auto sprite_group = asset_data_cxt.into("sprite/player");
+    for (size_t i = 0; i < sprite_group.child_count(); ++i) {
+        auto p = sprite_group.into(i);
+        size_t t = p.get_as<size_t>(0);
+        float x = p.get_as<float>(1);
+        float y = p.get_as<float>(2);
+        float w = p.get_as<float>(3);
+        float h = p.get_as<float>(4);
 
-        size_t sprite = sprite_sys.make_sprite(texture_sys.get(t)
-                                               , SDL_FRect{x, y, w, h});
+        size_t sprite = sprite_sys.make_sprite(texture_sys.get(t),
+                                               SDL_FRect{x, y, w, h});
     }
     player_data.sprite_drawer = sprite_sys.make_drawer(1);
 }

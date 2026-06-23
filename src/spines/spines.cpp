@@ -20,18 +20,6 @@ export struct Token {
     size_t index = 0;
 };
 
-export struct SpinesParseErr {
-    enum Type { // FIXME: name
-        NONE = 0,
-        ERR_IDENT,
-        ERR_FIELD_VAL,
-        ERR_SYNTAX,
-        ERR_ALREADY_INIT,
-    } type = NONE;
-    size_t column = 1;
-    size_t line = 1;
-};
-
 export struct SpinesContext {
     enum FieldType : u8 {
         FIELD_INT,
@@ -40,9 +28,9 @@ export struct SpinesContext {
     };
 
     union Field {
-        int int_val;
-        float float_val;
-        size_t string_val;
+        i64 int_val;
+        f64 float_val;
+        u64 string_val;
     };
 
     struct Ident {
@@ -112,9 +100,11 @@ export struct SpinesContext {
         }
     }
 
-    SpinesParseErr init(std::string_view src) {
-        if (arena.buffer)
-            return SpinesParseErr{SpinesParseErr::ERR_ALREADY_INIT};
+    void init(std::string_view src) {
+        if (arena.buffer) {
+            log_err("SpinesContext.init: already initiated");
+            return;
+        }
 
         auto cal_pos = [&](size_t index) -> std::pair<size_t, size_t> {
             size_t column = 1, line = 1;
@@ -150,10 +140,11 @@ export struct SpinesContext {
             last = token;
             strv.remove_prefix(len);
         };
-        auto lexer_err = [&](SpinesParseErr::Type type) {
-            auto [column, line] = cal_pos(cur_index);
+        auto lexer_err = [&]() {
+            auto [col, line] = cal_pos(cur_index);
             tokens.destroy();
-            return SpinesParseErr{type, column, line};
+            log_err("SpinesContext.parse: lexer error - syntax error at %d:%d",
+                    col, line);
         };
 
         //   INS{}=.,0
@@ -196,9 +187,14 @@ export struct SpinesContext {
 
             // Ident
             if (std::isalpha(front) || front == '_') {
-                if (last == TOKEN_IDENT || last == '=')
-                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
-                size_t len = strv.find_first_of(",.{} \t\n\r");
+                if (last == TOKEN_IDENT || last == '=') {
+                    lexer_err();
+                    return;
+                }
+                auto it = stdr::find_if(strv, [](char c) {
+                    return !(std::isalpha(c) || std::isdigit(c) || c == '_');
+                });
+                size_t len = std::distance(strv.begin(), it);
                 move_forward(true, TOKEN_IDENT, len);
                 continue;
             }
@@ -206,8 +202,10 @@ export struct SpinesContext {
             // Number
             if (std::isdigit(front) || front == '-') {
                 if (last == TOKEN_IDENT
-                    || last == TOKEN_NUM || last == TOKEN_STR)
-                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                    || last == TOKEN_NUM || last == TOKEN_STR) {
+                    lexer_err();
+                    return;
+                }
                 size_t len = strv.find_first_of(",.{} \t\n\r");
                 move_forward(true, TOKEN_NUM, len);
                 continue;
@@ -215,49 +213,63 @@ export struct SpinesContext {
 
             switch (front) {
             case '{':
-                if (last != TOKEN_IDENT)
-                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                if (last != TOKEN_IDENT) {
+                    lexer_err();
+                    return;
+                }
                 move_forward(false, front, 1);
             break;
 
             case '}':
                 if (last != TOKEN_NUM && last != TOKEN_STR
-                    && last != '}' && last != ',')
-                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                    && last != '}' && last != ',') {
+                    lexer_err();
+                    return;
+                }
                 move_forward(true, front, 1);
             break;
 
             case '=':
-                if (last != TOKEN_IDENT)
-                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                if (last != TOKEN_IDENT) {
+                    lexer_err();
+                    return;
+                }
                 move_forward(true, front, 1);
             break;
 
             case '.':
                 if (last == TOKEN_IDENT
-                    || last == TOKEN_NUM || last == TOKEN_STR)
-                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                    || last == TOKEN_NUM || last == TOKEN_STR) {
+                    lexer_err();
+                    return;
+                }
                 move_forward(true, TOKEN_ID_IDENT, 2);
             break;
 
             case ',':
-                if (last != TOKEN_NUM && last != TOKEN_STR && last != '}')
-                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                if (last != TOKEN_NUM && last != TOKEN_STR && last != '}') {
+                    lexer_err();
+                    return;
+                }
                 move_forward(false, front, 1);
             break;
 
             // String
             case '\"': {
                 if (last == TOKEN_IDENT
-                    || last == TOKEN_NUM || last == TOKEN_STR)
-                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                    || last == TOKEN_NUM || last == TOKEN_STR) {
+                    lexer_err();
+                    return;
+                }
 
                 ++cur_index;
                 strv.remove_prefix(1);
 
                 size_t len = strv.find_first_of("\'\"\n\r");
-                if (strv[len] != '\"')
-                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                if (strv[len] != '\"') {
+                    lexer_err();
+                    return;
+                }
                 move_forward(true, TOKEN_STR, len);
 
                 ++cur_index;
@@ -265,15 +277,19 @@ export struct SpinesContext {
             } break;
             case '\'': {
                 if (last == TOKEN_IDENT
-                    || last == TOKEN_NUM || last == TOKEN_STR)
-                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                    || last == TOKEN_NUM || last == TOKEN_STR) {
+                    lexer_err();
+                    return;
+                }
 
                 ++cur_index;
                 strv.remove_prefix(1);
 
                 size_t len = strv.find_first_of("\'\"\n\r");
-                if (strv[len] != '\'')
-                    return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                if (strv[len] != '\'') {
+                    lexer_err();
+                    return;
+                }
                 move_forward(true, TOKEN_STR, len);
 
                 ++cur_index;
@@ -281,7 +297,8 @@ export struct SpinesContext {
             } break;
 
             default:
-                return lexer_err(SpinesParseErr::ERR_SYNTAX);
+                lexer_err();
+                return;
             break;
             }
         }
@@ -342,7 +359,7 @@ export struct SpinesContext {
             ++next_ident;
         };
 
-        SpinesParseErr::Type err_type = SpinesParseErr::NONE;
+        std::string err_mess{};
         size_t err_index = 0;
         u8 just_after_assign_ident = 0;
         for (Token token : tokens) {
@@ -409,7 +426,7 @@ export struct SpinesContext {
                         _assert(fields_offset <= fields_cap,
                                 "fields_len out of bounds");
                     } else {
-                        err_type = SpinesParseErr::ERR_FIELD_VAL;
+                        err_mess = "invalid data field";
                         err_index = token.index;
                         goto _ERROR_PATH;
                     }
@@ -456,7 +473,7 @@ export struct SpinesContext {
             } break;
 
             default: {
-                err_type = SpinesParseErr::ERR_SYNTAX;
+                err_mess = "unrecognizable symbols";
                 err_index = token.index;
                 goto _ERROR_PATH;
             } break;
@@ -467,7 +484,7 @@ export struct SpinesContext {
         }
 
         tokens.destroy();
-        return {};
+        return;
 
     _ERROR_PATH:
         tokens.destroy();
@@ -477,177 +494,237 @@ export struct SpinesContext {
         field_types = nullptr;
         ident_names = string_data = nullptr;
         idents_cap = fields_cap = ident_names_size = string_data_size = 0;
-        auto [column, line] = cal_pos(err_index);
-        return SpinesParseErr{err_type, column, line};
+        auto [col, line] = cal_pos(err_index);
+        log_err("SpinesContext.init: %s at %d:%d", err_mess.c_str(), col, line);
+        return;
     }
 
-    struct Accessor {
+    struct Group {
         bool err = false;
         SpinesContext *ref = nullptr;
+        size_t ident = (size_t)-1;
 
-        bool field_accessing = false;
-        size_t index = (size_t)-1;
-
-        [[nodiscard]] Accessor at(std::string_view name) const {
-            if (err) return Accessor{.err = true};
-            if (field_accessing) return Accessor{.err = true};
+        [[nodiscard]] Group into(std::string_view directive) const {
+            if (err) return Group{.err = true};
 
             _assert(ref, "ref is null");
-            _assert(index == (size_t)-1 || index < ref->idents_cap,
-                    "ident_index out of bounds");
+            _assert(ident == (size_t)-1 || ident < ref->idents_cap,
+                    "ident out of bounds");
 
-            size_t s_begin = index != (size_t)-1 ? index + 1 : 0;
-            size_t s_end = index != (size_t)-1 ?
-                                index + ref->idents[index].parent_len
-                                : ref->idents_cap;
-            _assert(s_begin <= s_end, "search begin > end");
-            _assert(s_end <= ref->idents_cap, "search_end out of bounds");
-            for (size_t i = s_begin; i < s_end;) {
-                Ident ident = ref->idents[i];
-                if (ident.name_begin == (size_t)-1) continue;
-                if (name ==
-                        std::string_view{ref->ident_names + ident.name_begin,
-                                         ident.name_len}) {
-                    return Accessor{err, ref, field_accessing, i};
+            size_t new_ident = ident;
+            for (auto subrange : directive | stdv::split('/')) {
+                auto strv = std::string_view{subrange};
+
+                size_t id = (size_t)-1;
+                if (strv.front() == '.') {
+                    auto r = std::from_chars(strv.data(),
+                                             strv.data() + strv.length(),
+                                             id);
+                    if (r.ptr != strv.data() + strv.length()) {
+                        log_err("SpinesContext::Group.into(): wrong id format: %.*s",
+                                (int)strv.length(), strv.data());
+                        return Group{.err = true};
+                    }
                 }
 
-                i += ident.parent_len;
-            }
+                size_t s_begin = new_ident != (size_t)-1 ? 1 : 0;
+                size_t s_end = new_ident != (size_t)-1 ?
+                                    ref->idents[new_ident].parent_len
+                                    : ref->idents_cap;
+                size_t s_base = new_ident != (size_t)-1 ? new_ident : 0;
+                _assert(s_begin <= s_end, "search begin > end");
+                _assert(s_base + s_end <= ref->idents_cap,
+                        "search_end out of bounds");
+                for (size_t i = s_base + s_begin; i < s_base + s_end;) {
+                    Ident p = ref->idents[i];
+                    if (id != (size_t)-1) {
+                        if (p.name_begin == (size_t)-1 && id == p.name_len) {
+                            new_ident = i;
+                            break;                        }
+                    } else {
+                        if (p.name_begin != (size_t)-1
+                            && strv == std::string_view{ref->ident_names
+                                                        + p.name_begin,
+                                                        p.name_len}) {
+                            new_ident = i;
+                            break;
+                        }
+                    }
 
-            return Accessor{.err = true};
+                    i += p.parent_len;
+
+                    if (i >= s_base + s_end) {
+                        log_err("SpinesContext::Group.into(): not found: \"%.*s\"",
+                                (int)strv.length(), strv.data());
+                        return Group{.err = true};
+                    }
+                }
+            }
+            return Group{err, ref, new_ident};
         }
 
-        [[nodiscard]] Accessor at(size_t id) const {
-            if (err) return Accessor{.err = true};
-            if (field_accessing) return Accessor{.err = true};
+        [[nodiscard]] Group into(size_t id) const {
+            if (err) return Group{.err = true};
 
             _assert(ref, "ref is null");
-            _assert(index == (size_t)-1 || index < ref->idents_cap,
-                    "ident_index out of bounds");
+            _assert(ident == (size_t)-1 || ident < ref->idents_cap,
+                    "ident out of bounds");
 
-            size_t s_begin = index != (size_t)-1 ? index + 1 : 0;
-            size_t s_end = index != (size_t)-1 ?
-                                index + ref->idents[index].parent_len
+            size_t s_begin = ident != (size_t)-1 ? 1 : 0;
+            size_t s_end = ident != (size_t)-1 ?
+                                ref->idents[ident].parent_len
                                 : ref->idents_cap;
+            size_t s_base = ident != (size_t)-1 ? ident : 0;
             _assert(s_begin <= s_end, "search begin > end");
-            _assert(s_end <= ref->idents_cap, "search_end out of bounds");
-            for (size_t i = s_begin; i < s_end;) {
-                Ident ident = ref->idents[i];
-                if (ident.name_begin != (size_t)-1) continue;
-                if (id == ident.name_len) {
-                    return Accessor{err, ref, field_accessing, i};
+            _assert(s_base + s_end <= ref->idents_cap,
+                    "search_end out of bounds");
+            for (size_t i = s_base + s_begin; i < s_base + s_end;) {
+                Ident p = ref->idents[i];
+                if (p.name_begin == (size_t)-1 && id == p.name_len) {
+                    return Group {err, ref, i};
                 }
 
-                i += ident.parent_len;
+                i += p.parent_len;
             }
 
-            return Accessor{.err = true};
+            log_err("SpinesContext::Group.into(): not found .%d", id);
+            return Group{.err = true};
         }
 
-        [[nodiscard]] size_t child_len() const {
-            if (field_accessing) return 0;
-
-            _assert(ref, "ref is null");
-            _assert(index == (size_t)-1 || index < ref->idents_cap,
-                    "ident_index out of bounds");
-
-            if (index == (size_t)-1) return ref->idents_cap;
-            return ref->idents[index].parent_len - 1;
+        [[nodiscard]] size_t len() const {
+            return ident == (size_t)-1 ? ref->fields_cap
+                                         : ref->idents[ident].fields_len;
         }
 
-        [[nodiscard]] Accessor offset(size_t i) const {
-            if (err) return Accessor{.err = true};
-
-            _assert(ref, "ref is null");
-            _assert(index == (size_t)-1
-                    || index < (field_accessing ? ref->fields_cap
-                                                  : ref->idents_cap),
-                    "index out of bounds");
-
-            size_t base_index =
-                index != (size_t)-1 ?
-                    (field_accessing ? index : ref->idents[index].fields_begin)
-                    : 0;
-
-            size_t dest_index = base_index + i;
-            if (dest_index > ref->fields_cap) return Accessor{.err = true};
-
-            return Accessor{err, ref, true, dest_index};
+        [[nodiscard]] size_t child_count() const {
+            return ident == (size_t)-1 ? ref->idents_cap - 1
+                                         : ref->idents[ident].parent_len - 1;
         }
 
-        [[nodiscard]] void* raw() const {
-            if (err) return nullptr;
 
-            _assert(ref, "ref is null");
-
-            size_t target =
-                field_accessing ? index : ref->idents[index].fields_begin;
-
-            if (ref->field_types[target] == FIELD_STRING) {
-                return &ref->string_data[ref->field_vals[target].string_val];
+        [[nodiscard]] std::pair<Field, FieldType> get(size_t index) const {
+            if (err || !ref) {
+                log_err("SpinesContext:Group.get_naked(): Group is error");
+                return {Field{}, (FieldType)0};
             }
-            return &ref->field_vals[target];
+
+            size_t base =
+                ident == (size_t)-1 ? 0 : ref->idents[ident].fields_begin;
+            size_t dest = base + index;
+            if (index >= len()) {
+                log_warn("SpinesContext:Group.get_naked(): index out of bounds; return first group's field");
+                dest = base;
+            }
+            return {ref->field_vals[dest], ref->field_types[dest]};
         }
 
-        template <typename T> [[nodiscard]] std::optional<T> as() const {
-            if (err || !ref) return std::nullopt;
+        [[nodiscard]] Field get_naked(size_t index) const {
+            if (err || !ref) {
+                log_err("SpinesContext:Group.get_naked(): Group is error");
+                return Field{};
+            }
 
-            _assert(ref, "ref is null");
+            size_t base =
+                ident == (size_t)-1 ? 0 : ref->idents[ident].fields_begin;
+            size_t dest = base + index;
+            if (index >= len()) {
+                log_warn("SpinesContext:Group.get_naked(): index out of bounds; return first group's field");
+                dest = base;
+            }
+            return ref->field_vals[dest];
+        }
 
-            size_t target =
-                field_accessing ? index : ref->idents[index].fields_begin;
-            auto type_id = ref->field_types[target];
+        [[nodiscard]] const char *get_string(size_t index) const {
+            if (err || !ref) {
+                log_err("SpinesContext:Group.get_string(): Group is error");
+                return nullptr;
+            }
 
-            void* ptr = raw();
-            if (!ptr) return std::nullopt;
+            size_t base =
+                ident == (size_t)-1 ? 0 : ref->idents[ident].fields_begin;
+            size_t dest = base + index;
+            if (index >= len()) {
+                log_warn("SpinesContext:Group.get_string(): index out of bounds; return first group's field");
+                dest = base;
+            }
+            return &ref->string_data[ref->field_vals[dest].string_val];
+        }
+
+        template <typename T> [[nodiscard]] T get_as(size_t index) const {
+            if (err || !ref) {
+                log_err("SpinesContext:Group.get_as(): Group is error");
+                return T{};
+            }
+
+            size_t base =
+                ident == (size_t)-1 ? 0 : ref->idents[ident].fields_begin;
+            size_t dest = base + index;
+            if (index >= len()) {
+                log_warn("SpinesContext:Group.get_as(): index out of bounds; return first group's field");
+                dest = base;
+            }
+
+            SpinesContext::FieldType type = ref->field_types[dest];
+            Field val = ref->field_vals[dest];
             if constexpr (std::is_arithmetic_v<T>) {
-                if (type_id == SpinesContext::FIELD_INT) {
-                    return static_cast<T>(*static_cast<int*>(ptr));
-                } else if (type_id == SpinesContext::FIELD_FLOAT) {
-                    return static_cast<T>(*static_cast<float*>(ptr));
+                if (type == FIELD_INT) {
+                    return static_cast<T>(val.int_val);
+                } else if (type == FIELD_FLOAT) {
+                    return static_cast<T>(val.float_val);
                 }
             }
             else if constexpr (std::is_constructible_v<T, const char*>) {
-                if (type_id == SpinesContext::FIELD_STRING) {
-                    return T(static_cast<const char*>(ptr));
+                if (type == SpinesContext::FIELD_STRING) {
+                    const char *str = &ref->string_data[val.string_val];
+                    return T{str};
                 }
             }
 
-            return std::nullopt;
+            log_warn("SpinesContext:Group.get_as(): type missmatched, return default");
+            return T{};
         }
 
-        template <typename T> [[nodiscard]] std::optional<T *> ptr_as() const {
-            if (err|| !ref) return std::nullopt;
+        struct iterator {
+            using iterator_category = std::random_access_iterator_tag;
+            using value_type        = std::pair<Field, FieldType>;
+            using difference_type   = std::ptrdiff_t;
+            using reference         = value_type;
 
-            _assert(ref, "ref is null");
+            const Group* group = nullptr;
+            size_t index = 0;
 
-            size_t target =
-                field_accessing ? index : ref->idents[index].fields_begin;
-            auto type_id = ref->field_types[target];
+            reference operator*() const { return group->get(index); }
 
-            void* ptr = raw();
-            if (!ptr) return std::nullopt;
-            if constexpr (std::is_same_v<T, int>
-                    || std::is_same_v<T, const int>) {
-                if (type_id == SpinesContext::FIELD_INT)
-                    return static_cast<T*>(ptr);
+            iterator& operator++() { ++index; return *this; }
+            iterator operator++(int) { iterator tmp = *this; ++index; return tmp; }
+            iterator& operator--() { --index; return *this; }
+            iterator operator--(int) { iterator tmp = *this; --index; return tmp; }
+
+            iterator& operator+=(difference_type n) { index += n; return *this; }
+            iterator& operator-=(difference_type n) { index -= n; return *this; }
+            friend iterator operator+(iterator it, difference_type n) { it += n; return it; }
+            friend iterator operator+(difference_type n, iterator it) { it += n; return it; }
+            friend iterator operator-(iterator it, difference_type n) { it -= n; return it; }
+
+            friend difference_type operator-(const iterator& a, const iterator& b) {
+                return a.index - b.index;
             }
-            else if constexpr (std::is_same_v<T, float>
-                    || std::is_same_v<T, const float>) {
-                if (type_id == SpinesContext::FIELD_FLOAT)
-                    return static_cast<T*>(ptr);
-            }
-            else if constexpr (std::is_same_v<T, char>
-                    || std::is_same_v<T, const char>) {
-                if (type_id == SpinesContext::FIELD_STRING)
-                    return static_cast<T*>(ptr);
-            }
 
-            return std::nullopt;
-        }
+            bool operator==(const iterator& o) const = default;
+            auto operator<=>(const iterator& o) const { return index <=> o.index; }
+        };
+
+        [[nodiscard]] iterator begin() const { return iterator{this, 0}; }
+        [[nodiscard]] iterator end() const { return iterator{this, len()}; }
     };
 
-    [[nodiscard]] Accessor accessor() {
-        return Accessor{false, this, false, (size_t)-1};
+    [[nodiscard]] Group group() {
+        return Group{false, this, (size_t)-1};
+    }
+    [[nodiscard]] Group into(std::string_view directive) {
+        return group().into(directive);
+    }
+    [[nodiscard]] Group into(size_t id) {
+        return group().into(id);
     }
 };
