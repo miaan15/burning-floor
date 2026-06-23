@@ -49,7 +49,7 @@ if(USE_ASAN)
     add_link_options(-fsanitize=address)
 endif()
 
-# add_compile_options(-ftime-trace)
+add_compile_options(-ftime-trace)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug ")
     message(STATUS "Debug build detected: Enabling strict warnings.")
@@ -90,7 +90,8 @@ file(GLOB_RECURSE SRC_CPPM CONFIGURE_DEPENDS "${SRC_DIR}/*.cppm")
 
 set(LIBS
     ${SDL_TARGET}
-    ${GLM_TARGET})
+    ${GLM_TARGET}
+    ${BOX2D_TARGET})
 
 # ----------------------------------------------------------------------------------------
 # Final

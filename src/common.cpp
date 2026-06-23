@@ -8,6 +8,7 @@ export import std;
 export import glm;
 export import sdl;
 export import box2d;
+export import log;
 
 export namespace stdf = std::filesystem;
 export namespace stdr = std::ranges;
