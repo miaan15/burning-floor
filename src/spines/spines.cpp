@@ -30,7 +30,7 @@ export struct SpinesContext {
     union Field {
         i64 int_val;
         f64 float_val;
-        u64 string_val;
+        u64 str_val;
     };
 
     struct Ident {
@@ -95,7 +95,7 @@ export struct SpinesContext {
             if (t == FIELD_INT) std::cout << p.int_val;
             if (t == FIELD_FLOAT) std::cout << p.float_val;
             if (t == FIELD_STRING)
-                std::cout << string_data + p.string_val;
+                std::cout << string_data + p.str_val;
             std::cout << std::endl;
         }
     }
@@ -444,7 +444,7 @@ export struct SpinesContext {
                 std::string_view strv(src.data() + token.index, token.len);
 
                 field_types[fields_offset] = FIELD_STRING;
-                field_vals[fields_offset].string_val = string_data_offset;
+                field_vals[fields_offset].str_val = string_data_offset;
                 ++fields_offset;
                 _assert(fields_offset <= fields_cap,
                         "fields_len out of bounds");
@@ -499,6 +499,12 @@ export struct SpinesContext {
         return;
     }
 
+    // =========================================================================
+    struct GroupRange;
+    struct FieldRange;
+
+    // GROUP
+    // =========================================================================
     struct Group {
         bool err = false;
         SpinesContext *ref = nullptr;
@@ -602,7 +608,7 @@ export struct SpinesContext {
         }
 
 
-        [[nodiscard]] std::pair<Field, FieldType> get(size_t index) const {
+        [[nodiscard]] std::pair<Field, FieldType> get_naked(size_t index) const {
             if (err || !ref) {
                 log_err("SpinesContext:Group.get_naked(): Group is error");
                 return {Field{}, (FieldType)0};
@@ -618,36 +624,25 @@ export struct SpinesContext {
             return {ref->field_vals[dest], ref->field_types[dest]};
         }
 
-        [[nodiscard]] Field get_naked(size_t index) const {
+        [[nodiscard]] std::pair<void *, FieldType> get_ptr(size_t index) const {
             if (err || !ref) {
-                log_err("SpinesContext:Group.get_naked(): Group is error");
-                return Field{};
+                log_err("SpinesContext:Group.get_ptr(): Group is error");
+                return {nullptr, (FieldType)0};
             }
 
             size_t base =
                 ident == (size_t)-1 ? 0 : ref->idents[ident].fields_begin;
             size_t dest = base + index;
             if (index >= len()) {
-                log_warn("SpinesContext:Group.get_naked(): index out of bounds; return first group's field");
+                log_warn("SpinesContext:Group.get_ptr(): index out of bounds; return first group's field");
                 dest = base;
             }
-            return ref->field_vals[dest];
-        }
-
-        [[nodiscard]] const char *get_string(size_t index) const {
-            if (err || !ref) {
-                log_err("SpinesContext:Group.get_string(): Group is error");
-                return nullptr;
-            }
-
-            size_t base =
-                ident == (size_t)-1 ? 0 : ref->idents[ident].fields_begin;
-            size_t dest = base + index;
-            if (index >= len()) {
-                log_warn("SpinesContext:Group.get_string(): index out of bounds; return first group's field");
-                dest = base;
-            }
-            return &ref->string_data[ref->field_vals[dest].string_val];
+            auto type = ref->field_types[dest];
+            void *ptr =
+                type == FIELD_STRING ?
+                    (void *)&ref->string_data[ref->field_vals[dest].str_val]
+                    : (void *)&ref->field_vals[dest];
+            return {ptr, type};
         }
 
         template <typename T> [[nodiscard]] T get_as(size_t index) const {
@@ -675,7 +670,7 @@ export struct SpinesContext {
             }
             else if constexpr (std::is_constructible_v<T, const char*>) {
                 if (type == SpinesContext::FIELD_STRING) {
-                    const char *str = &ref->string_data[val.string_val];
+                    const char *str = &ref->string_data[val.str_val];
                     return T{str};
                 }
             }
@@ -684,24 +679,41 @@ export struct SpinesContext {
             return T{};
         }
 
+        [[nodiscard]] GroupRange group_range() const;
+        [[nodiscard]] FieldRange field_range() const;
+    };
+
+    [[nodiscard]] Group group() {
+        return Group{false, this, (size_t)-1};
+    }
+    [[nodiscard]] Group into(std::string_view directive) {
+        return group().into(directive);
+    }
+    [[nodiscard]] Group into(size_t id) {
+        return group().into(id);
+    }
+
+    // RANGE
+    // =========================================================================
+    struct GroupRange {
         struct iterator {
             using iterator_category = std::random_access_iterator_tag;
-            using value_type        = std::pair<Field, FieldType>;
+            using value_type        = Group;
             using difference_type   = std::ptrdiff_t;
             using reference         = value_type;
 
-            const Group* group = nullptr;
+            SpinesContext *cxt = nullptr;
             size_t index = 0;
 
-            reference operator*() const { return group->get(index); }
+            reference operator*() const { return Group{false, cxt, index}; }
 
-            iterator& operator++() { ++index; return *this; }
+            iterator &operator++() { ++index; return *this; }
             iterator operator++(int) { iterator tmp = *this; ++index; return tmp; }
-            iterator& operator--() { --index; return *this; }
+            iterator &operator--() { --index; return *this; }
             iterator operator--(int) { iterator tmp = *this; --index; return tmp; }
 
-            iterator& operator+=(difference_type n) { index += n; return *this; }
-            iterator& operator-=(difference_type n) { index -= n; return *this; }
+            iterator &operator+=(difference_type n) { index += n; return *this; }
+            iterator &operator-=(difference_type n) { index -= n; return *this; }
             friend iterator operator+(iterator it, difference_type n) { it += n; return it; }
             friend iterator operator+(difference_type n, iterator it) { it += n; return it; }
             friend iterator operator-(iterator it, difference_type n) { it -= n; return it; }
@@ -714,17 +726,72 @@ export struct SpinesContext {
             auto operator<=>(const iterator& o) const { return index <=> o.index; }
         };
 
-        [[nodiscard]] iterator begin() const { return iterator{this, 0}; }
-        [[nodiscard]] iterator end() const { return iterator{this, len()}; }
+        SpinesContext *cxt = nullptr;
+        size_t _begin = 0, _end = 0;
+        [[nodiscard]] iterator begin() const { return iterator{cxt, _begin}; }
+        [[nodiscard]] iterator end() const { return iterator{cxt, _end}; }
     };
 
-    [[nodiscard]] Group group() {
-        return Group{false, this, (size_t)-1};
+    // TODO return void * is not a good idea
+    struct FieldRange {
+        struct iterator {
+            using iterator_category = std::random_access_iterator_tag;
+            using value_type        = void *;
+            using difference_type   = std::ptrdiff_t;
+            using reference         = value_type;
+
+            SpinesContext *cxt = nullptr;
+            size_t index = 0;
+
+            reference operator*() const { 
+                return cxt->field_types[index] == FIELD_STRING ?
+                    (void *)&cxt->string_data[cxt->field_vals[index].str_val]
+                    : (void *)&cxt->field_vals[index];
+            }
+
+            iterator &operator++() { ++index; return *this; }
+            iterator operator++(int) { iterator tmp = *this; ++index; return tmp; }
+            iterator &operator--() { --index; return *this; }
+            iterator operator--(int) { iterator tmp = *this; --index; return tmp; }
+
+            iterator &operator+=(difference_type n) { index += n; return *this; }
+            iterator &operator-=(difference_type n) { index -= n; return *this; }
+            friend iterator operator+(iterator it, difference_type n) { it += n; return it; }
+            friend iterator operator+(difference_type n, iterator it) { it += n; return it; }
+            friend iterator operator-(iterator it, difference_type n) { it -= n; return it; }
+
+            friend difference_type operator-(const iterator& a, const iterator& b) {
+                return a.index - b.index;
+            }
+
+            bool operator==(const iterator& o) const = default;
+            auto operator<=>(const iterator& o) const { return index <=> o.index; }
+        };
+
+        SpinesContext *cxt = nullptr;
+        size_t _begin = 0, _end = 0;
+        [[nodiscard]] iterator begin() const { return iterator{cxt, _begin}; }
+        [[nodiscard]] iterator end() const { return iterator{cxt, _end}; }
+    };
+
+    [[nodiscard]] GroupRange group_range() {
+        return group().group_range();
     }
-    [[nodiscard]] Group into(std::string_view directive) {
-        return group().into(directive);
-    }
-    [[nodiscard]] Group into(size_t id) {
-        return group().into(id);
+    [[nodiscard]] FieldRange field_range() {
+        return group().field_range();
     }
 };
+
+[[nodiscard]]
+SpinesContext::GroupRange SpinesContext::Group::group_range() const {
+    if (ident == (size_t)-1) return GroupRange{ref, 0, ref->idents_cap};
+    return GroupRange{ref, ident + 1, ident + ref->idents[ident].parent_len};
+}
+
+[[nodiscard]]
+SpinesContext::FieldRange SpinesContext::Group::field_range() const {
+    if (ident == (size_t)-1) return FieldRange{ref, 0, ref->fields_cap};
+    auto p = ref->idents[ident];
+    return FieldRange{ref, p.fields_begin, p.fields_begin + p.fields_len};
+}
+

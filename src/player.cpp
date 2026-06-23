@@ -40,16 +40,16 @@ void init_player() {
     auto tex_path = asset_data_cxt.into("texture").get_as<std::string_view>(0);
     size_t tex = texture_sys.load(tex_path);
     auto sprite_group = asset_data_cxt.into("sprite/player");
-    for (size_t i = 0; i < sprite_group.child_count(); ++i) {
-        auto p = sprite_group.into(i);
-        size_t t = p.get_as<size_t>(0);
-        float x = p.get_as<float>(1);
-        float y = p.get_as<float>(2);
-        float w = p.get_as<float>(3);
-        float h = p.get_as<float>(4);
-
-        size_t sprite = sprite_sys.make_sprite(texture_sys.get(t),
-                                               SDL_FRect{x, y, w, h});
+    for (auto gr : sprite_group.group_range()) {
+        // size_t t = *reinterpret_cast<size_t *>(*it++);
+        // float x = *reinterpret_cast<float *>(*it++);
+        // float y = *reinterpret_cast<float *>(*it++);
+        // float w = *reinterpret_cast<float *>(*it++);
+        // float h = *reinterpret_cast<float *>(*it++);
+        //
+        // log_info("%d %f %f %f %f", t, x, y, w, h);
+        // size_t sprite = sprite_sys.make_sprite(texture_sys.get(t),
+        //                                        SDL_FRect{x, y, w, h});
     }
     player_data.sprite_drawer = sprite_sys.make_drawer(1);
 }
