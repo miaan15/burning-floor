@@ -41,15 +41,15 @@ void init_player() {
     size_t tex = texture_sys.load(tex_path);
     auto sprite_group = asset_data_cxt.into("sprite/player");
     for (auto gr : sprite_group.group_range()) {
-        // size_t t = *reinterpret_cast<size_t *>(*it++);
-        // float x = *reinterpret_cast<float *>(*it++);
-        // float y = *reinterpret_cast<float *>(*it++);
-        // float w = *reinterpret_cast<float *>(*it++);
-        // float h = *reinterpret_cast<float *>(*it++);
-        //
-        // log_info("%d %f %f %f %f", t, x, y, w, h);
-        // size_t sprite = sprite_sys.make_sprite(texture_sys.get(t),
-        //                                        SDL_FRect{x, y, w, h});
+        auto it = gr.field_range().begin();
+        size_t t = (*it++).as<size_t>();
+        float x = (*it++).as<float>();
+        float y = (*it++).as<float>();
+        float w = (*it++).as<float>();
+        float h = (*it++).as<float>();
+
+        size_t sprite = sprite_sys.make_sprite(texture_sys.get(t),
+                                               SDL_FRect{x, y, w, h});
     }
     player_data.sprite_drawer = sprite_sys.make_drawer(1);
 }

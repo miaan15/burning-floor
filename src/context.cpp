@@ -32,12 +32,9 @@ export void init_context() {
     {
         auto str = load_context("data/data_asset.txt");
         asset_data_cxt.init(str);
-        asset_data_cxt.print_debug();
     }
-    std::cout << "\n\n\n";
     {
         auto str = load_context("data/data_game.txt");
         game_data_cxt.init(str);
-        game_data_cxt.print_debug();
     }
 }

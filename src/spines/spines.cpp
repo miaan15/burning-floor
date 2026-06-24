@@ -24,7 +24,7 @@ export struct SpinesContext {
     enum FieldType : u8 {
         FIELD_INT,
         FIELD_FLOAT,
-        FIELD_STRING
+        FIELD_STR
     };
 
     union Field {
@@ -90,11 +90,11 @@ export struct SpinesContext {
             FieldType t = field_types[i];
             std::string name = "int";
             if (t == FIELD_FLOAT) name = "float";
-            if (t == FIELD_STRING) name = "string";
+            if (t == FIELD_STR) name = "string";
             std::cout << "\t " << i << ": [" << name << "]: ";
             if (t == FIELD_INT) std::cout << p.int_val;
             if (t == FIELD_FLOAT) std::cout << p.float_val;
-            if (t == FIELD_STRING)
+            if (t == FIELD_STR)
                 std::cout << string_data + p.str_val;
             std::cout << std::endl;
         }
@@ -443,7 +443,7 @@ export struct SpinesContext {
             case TOKEN_STR: {
                 std::string_view strv(src.data() + token.index, token.len);
 
-                field_types[fields_offset] = FIELD_STRING;
+                field_types[fields_offset] = FIELD_STR;
                 field_vals[fields_offset].str_val = string_data_offset;
                 ++fields_offset;
                 _assert(fields_offset <= fields_cap,
@@ -498,6 +498,45 @@ export struct SpinesContext {
         log_err("SpinesContext.init: %s at %d:%d", err_mess.c_str(), col, line);
         return;
     }
+
+    // =========================================================================
+    struct FieldProxy {
+        FieldType type = (FieldType)-1;
+        void *raw = nullptr;
+
+        void init(SpinesContext *cxt, size_t index) {
+            type = cxt->field_types[index];
+            raw = type == FIELD_STR ?
+                      (void *)&cxt->string_data[cxt->field_vals[index].str_val]
+                      : (void *)&cxt->field_vals[index];
+        }
+        [[nodiscard]] static
+        FieldProxy make(SpinesContext *cxt, size_t index) {
+            FieldProxy fp{};
+            fp.init(cxt, index);
+            return fp;
+        }
+
+        template <typename T> [[nodiscard]] T as() const {
+            if constexpr (std::is_arithmetic_v<T>) {
+                auto val = *(Field *)raw;
+                if (type == FIELD_INT) {
+                    return static_cast<T>(val.int_val);
+                } else if (type == FIELD_FLOAT) {
+                    return static_cast<T>(val.float_val);
+                }
+            }
+            else if constexpr (std::is_constructible_v<T, const char*>) {
+                if (type == SpinesContext::FIELD_STR) {
+                    auto str = (const char *)raw;
+                    return T{str};
+                }
+            }
+
+            log_warn("FieldProxy:as(): type missmatched, return default");
+            return T{};
+        }
+    };
 
     // =========================================================================
     struct GroupRange;
@@ -607,6 +646,21 @@ export struct SpinesContext {
                                          : ref->idents[ident].parent_len - 1;
         }
 
+        [[nodiscard]] FieldProxy get(size_t index) const {
+            if (err || !ref) {
+                log_err("SpinesContext:Group.get_ptr(): Group is error");
+                return FieldProxy{};
+            }
+
+            size_t base =
+                ident == (size_t)-1 ? 0 : ref->idents[ident].fields_begin;
+            size_t dest = base + index;
+            if (index >= len()) {
+                log_warn("SpinesContext:Group.get_ptr(): index out of bounds; return first group's field");
+                dest = base;
+            }
+            return FieldProxy::make(ref, dest);
+        }
 
         [[nodiscard]] std::pair<Field, FieldType> get_naked(size_t index) const {
             if (err || !ref) {
@@ -622,27 +676,6 @@ export struct SpinesContext {
                 dest = base;
             }
             return {ref->field_vals[dest], ref->field_types[dest]};
-        }
-
-        [[nodiscard]] std::pair<void *, FieldType> get_ptr(size_t index) const {
-            if (err || !ref) {
-                log_err("SpinesContext:Group.get_ptr(): Group is error");
-                return {nullptr, (FieldType)0};
-            }
-
-            size_t base =
-                ident == (size_t)-1 ? 0 : ref->idents[ident].fields_begin;
-            size_t dest = base + index;
-            if (index >= len()) {
-                log_warn("SpinesContext:Group.get_ptr(): index out of bounds; return first group's field");
-                dest = base;
-            }
-            auto type = ref->field_types[dest];
-            void *ptr =
-                type == FIELD_STRING ?
-                    (void *)&ref->string_data[ref->field_vals[dest].str_val]
-                    : (void *)&ref->field_vals[dest];
-            return {ptr, type};
         }
 
         template <typename T> [[nodiscard]] T get_as(size_t index) const {
@@ -669,7 +702,7 @@ export struct SpinesContext {
                 }
             }
             else if constexpr (std::is_constructible_v<T, const char*>) {
-                if (type == SpinesContext::FIELD_STRING) {
+                if (type == SpinesContext::FIELD_STR) {
                     const char *str = &ref->string_data[val.str_val];
                     return T{str};
                 }
@@ -684,6 +717,10 @@ export struct SpinesContext {
     };
 
     [[nodiscard]] Group group() {
+        if (!arena.buffer) {
+            log_err("SpinesContext.group(): context not initiated");
+            return Group{.err = true};
+        }
         return Group{false, this, (size_t)-1};
     }
     [[nodiscard]] Group into(std::string_view directive) {
@@ -736,18 +773,14 @@ export struct SpinesContext {
     struct FieldRange {
         struct iterator {
             using iterator_category = std::random_access_iterator_tag;
-            using value_type        = void *;
+            using value_type        = FieldProxy;
             using difference_type   = std::ptrdiff_t;
             using reference         = value_type;
 
             SpinesContext *cxt = nullptr;
             size_t index = 0;
 
-            reference operator*() const { 
-                return cxt->field_types[index] == FIELD_STRING ?
-                    (void *)&cxt->string_data[cxt->field_vals[index].str_val]
-                    : (void *)&cxt->field_vals[index];
-            }
+            reference operator*() const { return FieldProxy::make(cxt, index); }
 
             iterator &operator++() { ++index; return *this; }
             iterator operator++(int) { iterator tmp = *this; ++index; return tmp; }
