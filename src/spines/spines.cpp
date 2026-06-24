@@ -30,7 +30,9 @@ export struct SpinesContext {
     union Field {
         i64 int_val;
         f64 float_val;
-        u64 str_val;
+        struct {
+            u32 root, len;
+        } str_val;
     };
 
     struct Ident {
@@ -95,7 +97,8 @@ export struct SpinesContext {
             if (t == FIELD_INT) std::cout << p.int_val;
             if (t == FIELD_FLOAT) std::cout << p.float_val;
             if (t == FIELD_STR)
-                std::cout << string_data + p.str_val;
+                std::cout << std::string_view{string_data + p.str_val.root,
+                                              p.str_val.len};
             std::cout << std::endl;
         }
     }
@@ -132,7 +135,7 @@ export struct SpinesContext {
             if (token == TOKEN_IDENT || token == TOKEN_ID_IDENT) ++idents_cap;
             if (token == TOKEN_IDENT) ident_names_size += len;
             if (token == TOKEN_NUM || token == TOKEN_STR) ++fields_cap;
-            if (token == TOKEN_STR) string_data_size += len + 1;
+            if (token == TOKEN_STR) string_data_size += len;
 
             if (add_token)
                 tokens.append(Token{token, len, cur_index});
@@ -149,8 +152,8 @@ export struct SpinesContext {
 
         //   INS{}=.,0
         // I 011110011
-        // N 000111111
-        // S 000111111
+        // N 001111111
+        // S 001111111
         // { 100000000
         // } 011010010
         // = 100000000
@@ -201,8 +204,7 @@ export struct SpinesContext {
 
             // Number
             if (std::isdigit(front) || front == '-') {
-                if (last == TOKEN_IDENT
-                    || last == TOKEN_NUM || last == TOKEN_STR) {
+                if (last == TOKEN_IDENT || last == TOKEN_NUM) {
                     lexer_err();
                     return;
                 }
@@ -256,8 +258,7 @@ export struct SpinesContext {
 
             // String
             case '\"': {
-                if (last == TOKEN_IDENT
-                    || last == TOKEN_NUM || last == TOKEN_STR) {
+                if (last == TOKEN_IDENT || last == TOKEN_NUM) {
                     lexer_err();
                     return;
                 }
@@ -444,7 +445,8 @@ export struct SpinesContext {
                 std::string_view strv(src.data() + token.index, token.len);
 
                 field_types[fields_offset] = FIELD_STR;
-                field_vals[fields_offset].str_val = string_data_offset;
+                field_vals[fields_offset].str_val = {(u32)string_data_offset,
+                                                     (u32)token.len};
                 ++fields_offset;
                 _assert(fields_offset <= fields_cap,
                         "fields_len out of bounds");
@@ -452,7 +454,6 @@ export struct SpinesContext {
                 for (char c : strv) {
                     string_data[string_data_offset++] = c;
                 }
-                string_data[string_data_offset++] = '\0';
                 _assert(string_data_offset <= string_data_size,
                         "string_data_offset out of bounds");
 
@@ -502,13 +503,13 @@ export struct SpinesContext {
     // =========================================================================
     struct FieldProxy {
         FieldType type = (FieldType)-1;
-        void *raw = nullptr;
+        Field field{};
+        SpinesContext *cxt = nullptr;
 
         void init(SpinesContext *cxt, size_t index) {
             type = cxt->field_types[index];
-            raw = type == FIELD_STR ?
-                      (void *)&cxt->string_data[cxt->field_vals[index].str_val]
-                      : (void *)&cxt->field_vals[index];
+            field = cxt->field_vals[index];
+            this->cxt = cxt;
         }
         [[nodiscard]] static
         FieldProxy make(SpinesContext *cxt, size_t index) {
@@ -519,17 +520,16 @@ export struct SpinesContext {
 
         template <typename T> [[nodiscard]] T as() const {
             if constexpr (std::is_arithmetic_v<T>) {
-                auto val = *(Field *)raw;
                 if (type == FIELD_INT) {
-                    return static_cast<T>(val.int_val);
+                    return static_cast<T>(field.int_val);
                 } else if (type == FIELD_FLOAT) {
-                    return static_cast<T>(val.float_val);
+                    return static_cast<T>(field.float_val);
                 }
             }
             else if constexpr (std::is_constructible_v<T, const char*>) {
                 if (type == SpinesContext::FIELD_STR) {
-                    auto str = (const char *)raw;
-                    return T{str};
+                    const char *str = &cxt->string_data[field.str_val.root];
+                    return T{std::string_view{str, field.str_val.len}};
                 }
             }
 
@@ -703,8 +703,8 @@ export struct SpinesContext {
             }
             else if constexpr (std::is_constructible_v<T, const char*>) {
                 if (type == SpinesContext::FIELD_STR) {
-                    const char *str = &ref->string_data[val.str_val];
-                    return T{str};
+                    const char *str = &ref->string_data[val.str_val.root];
+                    return T{std::string_view{str, val.str_val.len}};
                 }
             }
 
