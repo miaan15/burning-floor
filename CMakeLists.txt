@@ -81,12 +81,14 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/vendor_box2d.cmake)
 set(VENDOR_DIR ${CMAKE_SOURCE_DIR}/vendor)
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 set(INC_DIRS
+    ${SRC_DIR}
     ${SDL_INCLUDE_DIR}
     ${GLM_INCLUDE_DIR}
     ${BOX2D_INCLUDE_DIR})
 
-file(GLOB_RECURSE SRCS CONFIGURE_DEPENDS "${SRC_DIR}/*.cpp")
-file(GLOB_RECURSE SRC_CPPM CONFIGURE_DEPENDS "${SRC_DIR}/*.cppm")
+file(GLOB_RECURSE CPP_SRCS CONFIGURE_DEPENDS "${SRC_DIR}/*.cpp")
+file(GLOB_RECURSE CPPM_SRCS CONFIGURE_DEPENDS "${SRC_DIR}/*.cppm")
+file(GLOB_RECURSE C_SRCS CONFIGURE_DEPENDS "${SRC_DIR}/*.c")
 
 set(LIBS
     ${SDL_TARGET}
@@ -97,12 +99,12 @@ set(LIBS
 # Final
 # ----------------------------------------------------------------------------------------
 set(ALL_MODULE_SRCS
-    ${SRCS}
-    ${SRC_CPPM}
+    ${CPP_SRCS}
+    ${CPPM_SRCS}
     ${GLM_MODULE_SOURCE})
 list(REMOVE_ITEM ALL_MODULE_SRCS "${SRC_DIR}/main.cpp")
 
-add_executable(game "${SRC_DIR}/main.cpp")
+add_executable(game "${SRC_DIR}/main.cpp" ${C_SRCS})
 target_sources(game PRIVATE FILE_SET CXX_MODULES FILES ${ALL_MODULE_SRCS})
 
 target_include_directories(game PRIVATE ${INC_DIRS})

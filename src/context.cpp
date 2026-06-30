@@ -16,8 +16,8 @@ export int pixel_size = 0;
 export double cur_time_sec;
 export double logic_update_alpha;
 
-export SpinesContext asset_data_cxt;
-export SpinesContext game_data_cxt;
+export spn_Context asset_data_cxt;
+export spn_Context game_data_cxt;
 
 export void init_context() {
     auto load_context = [](std::string_view path) {
@@ -31,10 +31,10 @@ export void init_context() {
 
     {
         auto str = load_context("data/data_asset.txt");
-        asset_data_cxt.init(str);
+        spn_parse(&asset_data_cxt, str.c_str(), str.length());
     }
     {
         auto str = load_context("data/data_game.txt");
-        game_data_cxt.init(str);
+        spn_parse(&game_data_cxt, str.c_str(), str.length());
     }
 }
