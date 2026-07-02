@@ -6,6 +6,24 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifndef _SPN_INLINE
+#   if defined(__cplusplus)
+#       define _SPN_INLINE inline
+#   else
+#       define _SPN_INLINE static inline
+#   endif
+#endif
+
+#ifndef SPN_DISABLE_ERROR
+extern char _spn_err_buffer[128];
+#define _SPN_SET_ERROR(format, ...) \
+    snprintf(_spn_err_buffer, sizeof(_spn_err_buffer), format, __VA_ARGS__)
+_SPN_INLINE const char *spn_error(void) { return _spn_err_buffer; }
+#else
+#define _SPN_SET_ERROR(format, ...) ((void)0)
+_SPN_INLINE const char *spn_error(void) { return ""; }
+#endif
+
 typedef enum {
     TOKEN_IDENT = 0,
     TOKEN_ID_IDENT,
@@ -13,7 +31,7 @@ typedef enum {
     TOKEN_STR,
     TOKEN_LBRACE,
     TOKEN_RBRACE,
-    TOKEN_EQ,
+    TOKEN_COLON,
     TOKEN_COMMA
 } spn_TokenType;
 
@@ -67,11 +85,15 @@ typedef struct {
 typedef struct {
     spn_Context *cxt;
     size_t index;
-    spn_Field *fields;
-} spn_Group;
+} spn_Mark;
 
-// This is C, just remember to call this
-void spn_destroy(spn_Context *cxt);
+/**
+ * This is C, just remember to call this
+ */
+_SPN_INLINE void spn_destroy(spn_Context *cxt) {
+    if (cxt->buffer) free(cxt->buffer);
+    cxt->buffer = NULL;
+}
 
 /**
  * Minh lam tu xuong va da, ca phe, thuoc la va 250 lit do co con
@@ -80,58 +102,90 @@ void spn_destroy(spn_Context *cxt);
  */
 void spn_parse(spn_Context *cxt, const char *str_ptr, size_t str_len);
 
-/**
- * Retrieves the top-level group of the context
- */
-spn_Group spn_root(spn_Context *cxt);
+_SPN_INLINE spn_Field *spn_fields(spn_Mark *gr) {
+    return &gr->cxt->field_vals[gr->cxt->idents[gr->index].fields_begin];
+}
 
 /**
- * Mutates the group to a child-group
+ * Retrieves the top-level mark of the context
  */
-void spn_move(spn_Group *gr, const char *dir);
+_SPN_INLINE spn_Mark spn_root(spn_Context *cxt) {
+    return (spn_Mark){cxt, 0};
+}
 
 /**
- * Mutates the group to an auto-indexed child-group
- */
-void spn_move_id(spn_Group *gr, size_t id);
-
-/**
- * Returns a new group from the child-group
- */
-spn_Group spn_find(spn_Group *gr, const char *dir);
-
-/**
- * Returns a new group from the child-group
- */
-spn_Group spn_find_id(spn_Group *gr, size_t id);
-
-/**
- * Advances group to the next sibling group (in the same level)
+ * Mutates the mark to a child-mark
  *
- * Returns true if successful, or false if the end is reached
+ * Do nothing if error
  */
-bool spn_step(spn_Group *gr);
+void spn_move(spn_Mark *gr, const char *dir);
 
 /**
- * Returns the next sibling group (in the same level)
- */
-spn_Group spn_next(spn_Group *gr);
-
-/**
- * Advances group to the absolute next group
+ * Mutates the mark to an auto-indexed child-mark
  *
- * Returns true if successful, or false if the end is reached
+ * Do nothing if error
  */
-bool spn_step_flat(spn_Group *gr);
+void spn_move_id(spn_Mark *gr, size_t id);
 
 /**
- * Returns the absolute next group
+ * Returns a new mark from the child-mark
+ *
+ * Return the same as original mark if error
  */
-spn_Group spn_next_flat(spn_Group *gr);
+_SPN_INLINE spn_Mark spn_find(spn_Mark gr, const char *dir) {
+    spn_move(&gr, dir);
+    return gr;
+}
+
+/**
+ * Returns a new mark from the child-mark
+ *
+ * Return the same as original mark if error
+ */
+_SPN_INLINE spn_Mark spn_find_id(spn_Mark gr, size_t id) {
+    spn_move_id(&gr, id);
+    return gr;
+}
+
+/**
+ * Advances mark to the next sibling mark (in the same level)
+ *
+ * Returns false and do nothing if the end is reached
+ */
+bool spn_step(spn_Mark *gr);
+
+/**
+ * Returns the next sibling mark (in the same level)
+ *
+ * Return the same as original mark if error
+ */
+_SPN_INLINE spn_Mark spn_next(spn_Mark gr) {
+    spn_step(&gr);
+    return gr;
+}
+
+/**
+ * Advances mark to the absolute next mark
+ *
+ * Returns false and do nothing if the end is reached
+ */
+bool spn_step_flat(spn_Mark *gr);
+
+/**
+ * Returns the absolute next mark
+ *
+ * Return the same as original mark if error
+ */
+_SPN_INLINE spn_Mark spn_next_flat(spn_Mark gr) {
+    spn_step_flat(&gr);
+    return gr;
+}
 
 /**
  * Returns the string field's data
  */
-const char *spn_str(spn_Context *cxt, spn_Field field);
+_SPN_INLINE const char *spn_str(spn_Context *cxt, spn_Field field) {
+    return cxt->string_data + field.str_val.begin;
+}
 
 #endif
