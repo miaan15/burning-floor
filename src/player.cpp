@@ -37,20 +37,20 @@ void init_player() {
     // =========================================================================
     // FIXME
     player_data.pos = {0, 0};
-    // auto tex_path = asset_data_cxt.into("texture").get_as<std::string_view>(0);
-    // size_t tex = texture_sys.load(tex_path);
-    // auto sprite_group = asset_data_cxt.into("sprite/player");
-    // for (auto gr : sprite_group.group_range()) {
-    //     auto it = gr.field_range().begin();
-    //     size_t t = (*it++).as<size_t>();
-    //     float x = (*it++).as<float>();
-    //     float y = (*it++).as<float>();
-    //     float w = (*it++).as<float>();
-    //     float h = (*it++).as<float>();
-    //
-    //     size_t sprite = sprite_sys.make_sprite(texture_sys.get(t),
-    //                                            SDL_FRect{x, y, w, h});
-    // }
+    auto tex_path = asset_data_cxt.into("texture").get_as<std::string_view>(0);
+    size_t tex = texture_sys.load(tex_path);
+    auto sprite_group = asset_data_cxt.into("sprite/player");
+    for (auto gr : sprite_group.group_range()) {
+        auto it = gr.field_range().begin();
+        size_t t = (*it++).as<size_t>();
+        float x = (*it++).as<float>();
+        float y = (*it++).as<float>();
+        float w = (*it++).as<float>();
+        float h = (*it++).as<float>();
+
+        size_t sprite = sprite_sys.make_sprite(texture_sys.get(t),
+                                               SDL_FRect{x, y, w, h});
+    }
     player_data.sprite_drawer = sprite_sys.make_drawer(1);
 }
 
