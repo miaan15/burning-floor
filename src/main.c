@@ -17,6 +17,8 @@ int pixel_size = 10;
 int cur_time = 0;
 int logic_update_alpha = 0;
 
+spn_Context cfg_context = {0};
+
 void logic_update();
 void frame_update();
 
@@ -30,8 +32,42 @@ int main() {
                                      window_width, window_height,
                                      0,
                                      &sdl_window, &sdl_renderer)) {
-        log_err("%s", SDL_GetError());
+        log_critical("%s", SDL_GetError());
         return 1;
+    }
+
+    { // Parse configs
+    const char *cfg_path = ASSET_PATH "/config.txt";
+    FILE *cfg_file = fopen(cfg_path, "r");
+    if (cfg_file == NULL) {
+        log_critical("Error open: %s", cfg_path);
+        return 1;
+    }
+
+    if (fseek(cfg_file, 0, SEEK_END) != 0) {
+        log_critical("Error seek file: %s", cfg_path);
+        fclose(cfg_file);
+        return 1;
+    }
+
+    int cfg_size = ftell(cfg_file);
+    if (cfg_size < 0) {
+        log_critical("Error ftell: %s", cfg_path);
+        fclose(cfg_file);
+        return 1;
+    }
+
+    rewind(cfg_file);
+
+    char *cfg_buffer = malloc(cfg_size + 1);
+    fread(cfg_buffer, 1, cfg_size, cfg_file);
+    cfg_buffer[cfg_size] = '\0';
+
+    fclose(cfg_file);
+
+    spn_parse(&cfg_context, cfg_buffer, cfg_size);
+
+    free(cfg_buffer);
     }
 
     bool running = 1;

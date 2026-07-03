@@ -41,8 +41,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug ")
     add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Wcast-align -Wnull-dereference)
 endif()
 
-add_compile_options(-fno-rtti -fno-exceptions) # No exception & run-time type info
-
 # ----------------------------------------------------------------------------------------
 # Vendors
 # ----------------------------------------------------------------------------------------
@@ -71,3 +69,7 @@ set(LIBS
 add_executable(a ${C_SRCS})
 target_include_directories(a PRIVATE ${INC_DIRS})
 target_link_libraries(a PRIVATE ${LIBS})
+
+target_compile_definitions(a PRIVATE
+    PROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)

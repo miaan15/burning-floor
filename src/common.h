@@ -1,5 +1,10 @@
 #pragma once
 
-#define PROJECT_PATH (__FILE__ "/../..")
-#define SRC_PATH     (__FILE__ "/../../src")
-#define ASSET_PATH   (__FILE__ "/../../asset")
+#include <SDL3/SDL_rect.h>
+
+#define PROJECT_PATH PROJECT_ROOT_DIR
+#define SRC_PATH     PROJECT_ROOT_DIR "/src"
+#define ASSET_PATH   PROJECT_ROOT_DIR "/asset"
+
+typedef SDL_FPoint Vec2;
+typedef SDL_FRect Rect;

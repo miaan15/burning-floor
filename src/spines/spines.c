@@ -422,7 +422,7 @@ void spn_parse(spn_Context *cxt, const char *str, size_t str_len) {
             assert(idents_offset <= cxt->idents_cap);
 
             memcpy(cxt->ident_names + ident_names_offset, str, i);
-            cxt->string_data[ident_names_offset + i] = '\0';
+            cxt->ident_names[ident_names_offset + i] = '\0';
             ident_names_offset += i + 1;
             assert(ident_names_offset <= cxt->ident_names_size);
 
