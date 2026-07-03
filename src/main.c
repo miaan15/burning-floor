@@ -3,7 +3,7 @@
 #include "macro.h"
 #include "common.h"
 #include "global.h"
-#include "log.h"
+#include "log/log.h"
 #include "input/input.h"
 
 int window_width = 1280;
