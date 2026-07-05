@@ -1,9 +1,11 @@
 #ifndef _SPINES_H
 #define _SPINES_H
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #ifndef _SPN_INLINE
@@ -53,12 +55,12 @@ typedef union {
     struct {
         uint32_t begin, len;
     } str_val;
-} spn_Field;
+} spn_FieldVal;
 
 typedef struct {
     size_t name_begin, name_len;
     size_t fields_begin, fields_len;
-    size_t parent_len;
+    size_t parent_len, parent;
 } spn_Ident;
 
 typedef struct {
@@ -71,7 +73,7 @@ typedef struct {
     spn_Ident *idents;
     size_t idents_cap;
 
-    spn_Field *field_vals;
+    spn_FieldVal *field_vals;
     uint8_t *field_types;
     size_t fields_cap;
 
@@ -81,6 +83,11 @@ typedef struct {
     char *string_data;
     size_t string_data_size;
 } spn_Context;
+
+typedef struct {
+    spn_FieldVal val;
+    uint8_t type;
+} spn_Field;
 
 typedef struct {
     spn_Context *cxt;
@@ -102,8 +109,62 @@ _SPN_INLINE void spn_destroy(spn_Context *cxt) {
  */
 void spn_parse(spn_Context *cxt, const char *str_ptr, size_t str_len);
 
-_SPN_INLINE spn_Field *spn_fields(spn_Mark *gr) {
-    return &gr->cxt->field_vals[gr->cxt->idents[gr->index].fields_begin];
+_SPN_INLINE spn_Field spn_get(spn_Mark *gr, size_t index) {
+    size_t target = gr->cxt->idents[gr->index].fields_begin + index;
+    return (spn_Field){ .val = gr->cxt->field_vals[target],
+                        .type = gr->cxt->field_types[target] };
+}
+
+_SPN_INLINE spn_FieldVal *spn_get_raw(spn_Mark *gr, size_t index) {
+    return &gr->cxt->field_vals[gr->cxt->idents[gr->index].fields_begin + index];
+}
+
+_SPN_INLINE int64_t spn_get_int(spn_Mark *gr, size_t index) {
+    spn_Field field = spn_get(gr, index);
+    if (field.type == FIELD_STR) {
+#ifndef SPN_DISABLE_ERROR
+         _SPN_SET_ERROR("spn_get_int(): field %zu cannot convert to INT, it was %s => Return 0",
+                        gr->cxt->idents[gr->index].fields_begin + index, "STR");
+#endif
+        return 0;
+    }
+
+    if (field.type == FIELD_INT) return (int64_t)field.val.int_val;
+    else                         return (int64_t)field.val.float_val;
+}
+
+_SPN_INLINE double spn_get_float(spn_Mark *gr, size_t index) {
+    spn_Field field = spn_get(gr, index);
+    if (field.type == FIELD_STR) {
+#ifndef SPN_DISABLE_ERROR
+         _SPN_SET_ERROR("spn_get_int(): field %zu cannot convert to FLOAT, it was %s => Return 0",
+                        gr->cxt->idents[gr->index].fields_begin + index, "STR");
+#endif
+        return 0;
+    }
+
+    if (field.type == FIELD_INT) return (double)field.val.int_val;
+    else                         return (double)field.val.float_val;
+}
+
+_SPN_INLINE const char *spn_get_str(spn_Mark *gr, size_t index) {
+    spn_Field field = spn_get(gr, index);
+    if (field.type != FIELD_STR) {
+#ifndef SPN_DISABLE_ERROR
+         _SPN_SET_ERROR("spn_get_int(): field %zu cannot convert to STR, it was %s => Return NULL",
+                        gr->cxt->idents[gr->index].fields_begin + index, field.type == FIELD_INT ? "INT" : "FLOAT");
+#endif
+        return 0;
+    }
+
+    return gr->cxt->string_data + field.val.str_val.begin;
+}
+
+/**
+ * Returns the string field's data
+ */
+_SPN_INLINE const char *spn_str(spn_Context *cxt, spn_FieldVal field) {
+    return cxt->string_data + field.str_val.begin;
 }
 
 /**
@@ -148,6 +209,68 @@ _SPN_INLINE spn_Mark spn_find_id(spn_Mark gr, size_t id) {
 }
 
 /**
+ * Mutates the mark to its parent
+ *
+ * Do nothing if this is root mark
+ */
+_SPN_INLINE void spn_to_parent(spn_Mark *gr) {
+    spn_Context *cxt = gr->cxt;
+    assert(cxt);
+    assert(cxt->buffer);
+    gr->index = cxt->idents[gr->index].parent;
+}
+
+/**
+ * Return parent mark
+ *
+ * Return the same as original mark if error
+ */
+_SPN_INLINE spn_Mark spn_parent(spn_Mark gr) {
+    spn_to_parent(&gr);
+    return gr;
+}
+
+/**
+ * Mutates the mark to a sibling-mark
+ *
+ * Do nothing if error
+ */
+_SPN_INLINE void spn_move_sibling(spn_Mark *gr, const char *dir) {
+    spn_to_parent(gr);
+    spn_move(gr, dir);
+}
+
+/**
+ * Mutates the mark to an auto-indexed sibling-mark
+ *
+ * Do nothing if error
+ */
+_SPN_INLINE void spn_move_sibling_id(spn_Mark *gr, size_t id) {
+    spn_to_parent(gr);
+    spn_move_id(gr, id);
+}
+
+/**
+ * Returns a new mark from the child-mark
+ *
+ * Return the same as original mark if error
+ */
+_SPN_INLINE spn_Mark spn_find_sibling(spn_Mark gr, const char *dir) {
+    spn_move_sibling(&gr, dir);
+    return gr;
+}
+
+/**
+ * Returns a new mark from the child-mark
+ *
+ * Return the same as original mark if error
+ */
+_SPN_INLINE spn_Mark spn_find_sibling_id(spn_Mark gr, size_t id) {
+    spn_move_sibling_id(&gr, id);
+    return gr;
+}
+
+/**
  * Advances mark to the next sibling mark (in the same level)
  *
  * Returns false and do nothing if the end is reached
@@ -179,13 +302,6 @@ bool spn_step_flat(spn_Mark *gr);
 _SPN_INLINE spn_Mark spn_next_flat(spn_Mark gr) {
     spn_step_flat(&gr);
     return gr;
-}
-
-/**
- * Returns the string field's data
- */
-_SPN_INLINE const char *spn_str(spn_Context *cxt, spn_Field field) {
-    return cxt->string_data + field.str_val.begin;
 }
 
 #endif

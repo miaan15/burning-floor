@@ -7,11 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// TODO:
-// - Remove '='
-// - Change '*{' to just '*'
-// - Make ',' optional
-
 #ifndef SPN_DISABLE_ERROR
 char _spn_err_buffer[128] = "";
 #   define _SET_ERR_CODE(err_code, val) (err_code = val)
@@ -53,15 +48,16 @@ typedef struct { size_t ident; size_t next_id_ident; } MarkStackEntry;
 void handle_out_of_mark(spn_Context *cxt, MarkStackEntry *stack,
                          size_t *stack_len) {
     assert(*stack_len > 0);
-    spn_Ident old_ident = cxt->idents[stack[*stack_len - 1].ident];
+    spn_Ident *child_ident = &cxt->idents[stack[*stack_len - 1].ident];
 
     --*stack_len;
 
     if (*stack_len > 0) {
-        spn_Ident *cur_ident =
-            &cxt->idents[stack[*stack_len - 1].ident];
-        cur_ident->fields_len += old_ident.fields_len;
-        cur_ident->parent_len += old_ident.parent_len;
+        spn_Ident *parent_ident = &cxt->idents[stack[*stack_len - 1].ident];
+        parent_ident->fields_len += child_ident->fields_len;
+        parent_ident->parent_len += child_ident->parent_len;
+
+        child_ident->parent = stack[*stack_len - 1].ident;
     }
 }
 
@@ -277,8 +273,8 @@ void spn_parse(spn_Context *cxt, const char *str, size_t str_len) {
     ++cxt->idents_cap; // global mark
     size_t buffer_size = cxt->idents_cap * sizeof(spn_Ident); // idents
     buffer_size =
-        (buffer_size + alignof(spn_Field) - 1) & ~(alignof(spn_Field) - 1);
-    buffer_size += cxt->fields_cap * sizeof(spn_Field); // field_vals
+        (buffer_size + alignof(spn_FieldVal) - 1) & ~(alignof(spn_FieldVal) - 1);
+    buffer_size += cxt->fields_cap * sizeof(spn_FieldVal); // field_vals
     buffer_size += cxt->fields_cap // field_types
                    + cxt->ident_names_size // ident_names
                    + cxt->string_data_size; // string_data
@@ -286,14 +282,14 @@ void spn_parse(spn_Context *cxt, const char *str, size_t str_len) {
     buffer_init(cxt, buffer_size);
     cxt->idents = (spn_Ident *)buffer_alloc(
         cxt, cxt->idents_cap * sizeof(spn_Ident), alignof(spn_Ident));
-    cxt->field_vals = (spn_Field *)buffer_alloc(
-        cxt, cxt->fields_cap * sizeof(spn_Field), alignof(spn_Field));
+    cxt->field_vals = (spn_FieldVal *)buffer_alloc(
+        cxt, cxt->fields_cap * sizeof(spn_FieldVal), alignof(spn_FieldVal));
     cxt->field_types = (uint8_t *)buffer_alloc(cxt, cxt->fields_cap, 1);
     cxt->ident_names = (char *)buffer_alloc(cxt, cxt->ident_names_size, 1);
     cxt->string_data = (char *)buffer_alloc(cxt, cxt->string_data_size, 1);
 
     cxt->idents[0] =
-        (spn_Ident){(size_t)-1, 0, 0, cxt->fields_cap, cxt->idents_cap};
+        (spn_Ident){(size_t)-1, 0, 0, cxt->fields_cap, cxt->idents_cap, 0};
     size_t idents_offset = 1;
     size_t fields_offset = 0;
     size_t ident_names_offset = 0;
@@ -354,7 +350,8 @@ void spn_parse(spn_Context *cxt, const char *str, size_t str_len) {
                 .name_len = mark_stack[mark_stack_len - 1].next_id_ident,
                 .fields_begin = fields_offset,
                 .fields_len = 0,
-                .parent_len = 1};
+                .parent_len = 1,
+                .parent = 0};
             assert(idents_offset <= cxt->idents_cap);
 
             ++mark_stack[mark_stack_len - 1].next_id_ident;
@@ -376,7 +373,7 @@ void spn_parse(spn_Context *cxt, const char *str, size_t str_len) {
             size_t len = i - 1;
 
             cxt->field_types[fields_offset] = FIELD_STR;
-            cxt->field_vals[fields_offset] = (spn_Field){
+            cxt->field_vals[fields_offset] = (spn_FieldVal){
                 .str_val = {
                     .begin = (uint32_t)string_data_offset,
                     .len   = (uint32_t)len } };
@@ -418,7 +415,8 @@ void spn_parse(spn_Context *cxt, const char *str, size_t str_len) {
                 .name_len = i,
                 .fields_begin = fields_offset,
                 .fields_len = 0,
-                .parent_len = 1};
+                .parent_len = 1,
+                .parent = 0};
             assert(idents_offset <= cxt->idents_cap);
 
             memcpy(cxt->ident_names + ident_names_offset, str, i);

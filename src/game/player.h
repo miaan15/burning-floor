@@ -18,9 +18,11 @@ typedef struct {
     Vec2 move_input;
 
     // Components
-    size_t sprite_drawer;
+    size_t drawer;
+
+    // Resources
+    size_t image;
 } PlayerData;
 
-void player_init() {
-    
-}
+extern PlayerDef player_def;
+extern PlayerData player_data;

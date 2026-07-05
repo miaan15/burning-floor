@@ -4,6 +4,7 @@
 #include <SDL3/SDL_video.h>
 
 #include "spines/spines.h"
+#include "image/image.h"
 
 extern int window_width;
 extern int window_height;
@@ -17,3 +18,5 @@ extern int cur_time;
 extern int logic_update_alpha;
 
 extern spn_Context cfg_context;
+
+extern ImageSys image_sys;

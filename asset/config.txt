@@ -1,1 +1,11 @@
-lol 67
+asset {
+    player {
+        sprite: "img/img_player.png"
+    }
+}
+
+game {
+    player {
+        move_speed: 4
+    }
+}
