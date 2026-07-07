@@ -124,12 +124,16 @@ size_t img_make_drawer(ImageSys *sys, size_t image) {
     sys->drawers[drawer].tex = img_get_tex(sys, image);
     sys->drawers[drawer].srect = (SDL_FRect){0, 0, img_data.w, img_data.h};
 
-    log_debug("Made image drawer %zu: from image %zu", drawer, image);
+    log_debug("Made an image drawer %zu: from image %zu", drawer, image);
 
     return drawer;
 }
 void img_remove_drawer(ImageSys *sys, size_t drawer) {
-    if (drawer >= sys->drawers_offset || _drawer_is_deleted(sys, drawer)) {
+    if (drawer >= sys->drawers_offset) {
+        log_err("img_remove_drawer(): index %zu out of bounds", drawer);
+        return;
+    }
+    if (_drawer_is_deleted(sys, drawer)) {
         log_err("img_remove_drawer(): drawer %zu already deleted", drawer);
         return;
     }
@@ -140,7 +144,7 @@ void img_remove_drawer(ImageSys *sys, size_t drawer) {
     _drawer_set_deleted(sys, drawer, 1);
     --sys->drawers_count;
 
-    log_debug("Removed image drawer %zu", drawer);
+    log_debug("Removed an image drawer %zu", drawer);
 }
 
 ImageDrawer *img_get_drawer_ptr(ImageSys *sys, size_t drawer) {

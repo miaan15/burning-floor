@@ -6,6 +6,7 @@ asset {
 
 game {
     player {
-        move_speed: 4
+        move_speed: 2
+        move_ani_delta: .05
     }
 }

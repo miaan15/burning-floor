@@ -7,6 +7,7 @@
 #include "log/log.h"
 #include "input/input.h"
 #include "game/player.h"
+#include "game/enemy.h"
 
 int window_width = 1280;
 int window_height = 720;
@@ -16,8 +17,8 @@ SDL_Renderer *sdl_renderer = NULL;
 int tps = 50;
 int pixel_size = 4;
 
-int cur_time = 0;
-int logic_update_alpha = 0;
+double cur_time = 0;
+double logic_update_alpha = 0;
 
 spn_Context cfg_context = {0};
 
@@ -97,6 +98,9 @@ int main() {
 
     spn_move(&cfgm_pl, "move_speed");
     player_def.move_speed = spn_get_float(&cfgm_pl, 0);
+
+    spn_move_sibling(&cfgm_pl, "move_ani_delta");
+    player_def.move_ani_delta = spn_get_float(&cfgm_pl, 0);
     }
 
     bool running = 1;
@@ -142,31 +146,76 @@ int main() {
 }
 
 void logic_update() {
+    const float EPSILON = 0.0001;
+    player_data.move_dir = player_data.move_input;
+    float len = sqrtf((player_data.move_dir.x * player_data.move_dir.x) +
+                      (player_data.move_dir.y * player_data.move_dir.y));
+    if (len > EPSILON) {
+        player_data.move_dir.x /= len;
+        player_data.move_dir.y /= len;
+    } else {
+        player_data.move_dir.x = 0;
+        player_data.move_dir.y = 0;
+    }
+
     player_data.pos.x += player_data.move_dir.x * player_def.move_speed;
     player_data.pos.y += player_data.move_dir.y * player_def.move_speed;
 }
 
 void frame_update() {
     player_data.move_input = (Vec2){0};
-    if (is_key_on(SCANCODE_W)) player_data.move_input.y += 1;
-    if (is_key_on(SCANCODE_A)) player_data.move_input.x -= 1;
-    if (is_key_on(SCANCODE_S)) player_data.move_input.y -= 1;
-    if (is_key_on(SCANCODE_D)) player_data.move_input.x += 1;
+    if (is_key_on(SCANCODE_W) || is_key_on(SCANCODE_UP))
+        player_data.move_input.y += 1;
+    if (is_key_on(SCANCODE_A) || is_key_on(SCANCODE_LEFT))
+        player_data.move_input.x -= 1;
+    if (is_key_on(SCANCODE_S) || is_key_on(SCANCODE_DOWN))
+        player_data.move_input.y -= 1;
+    if (is_key_on(SCANCODE_D) || is_key_on(SCANCODE_RIGHT))
+        player_data.move_input.x += 1;
 
+    const float EPSILON = 0.0001;
     player_data.move_dir = player_data.move_input;
-    float len = sqrt((player_data.move_dir.x * player_data.move_dir.x) +
-                     (player_data.move_dir.y * player_data.move_dir.y));
-    if (len > 0.0001f) {
-        player_data.move_dir.x /= len;
-        player_data.move_dir.y /= len;
+    float len = sqrtf((player_data.move_dir.x * player_data.move_dir.x) +
+                      (player_data.move_dir.y * player_data.move_dir.y));
+    if (len > EPSILON) {
+        if (fabsf(player_data.move_input.y) > EPSILON) {
+            player_data.facing_dir.x = 0;
+            player_data.facing_dir.y = copysignf(1, player_data.move_input.y);
+        } else {
+            player_data.facing_dir.x = copysignf(1, player_data.move_input.x);
+            player_data.facing_dir.y = 0;
+        }
+    }
+
+    if (player_data.facing_dir.y == 1)
+        player_data.drawer_srect_pos = (Vec2){0, 20};
+    else if (player_data.facing_dir.y == -1)
+        player_data.drawer_srect_pos = (Vec2){0,  0};
+    else if (player_data.facing_dir.x == 1)
+        player_data.drawer_srect_pos = (Vec2){0, 60};
+    else
+        player_data.drawer_srect_pos = (Vec2){0, 40};
+
+    if (len > EPSILON) {
+        float delta = (float)cur_time - player_data.last_frame_update;
+        if (delta > player_def.move_ani_delta) {
+            int n = (int)(delta / player_def.move_ani_delta);
+            const int MAX_FRAME = 4;
+            player_data.cur_frame = (player_data.cur_frame + n) % MAX_FRAME;
+
+            player_data.last_frame_update = (float)cur_time + n * delta;
+        }
+
+        player_data.drawer_srect_pos.x = player_data.cur_frame * 20;
     } else {
-        player_data.move_dir.x = 0.0f;
-        player_data.move_dir.y = 0.0f;
+        player_data.last_frame_update = cur_time;
     }
 }
 
 void render_update() {
-    img_get_drawer_ptr(&image_sys, player_data.drawer)->srect = (Rect){0, 0, 32, 32};
+    img_get_drawer_ptr(&image_sys, player_data.drawer)->srect =
+        (Rect){player_data.drawer_srect_pos.x, player_data.drawer_srect_pos.y,
+               20, 20};
     img_feed_drawer_world(&image_sys, player_data.drawer, player_data.pos, 0, 1);
 
     SDL_SetRenderDrawColor(sdl_renderer, 255, 255, 255, 255);
