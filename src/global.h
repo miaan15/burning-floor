@@ -14,7 +14,8 @@ extern SDL_Renderer *sdl_renderer;
 extern int tps;
 extern int pixel_size;
 
-extern double cur_time;
+extern double cur_frame_time;
+extern double cur_logic_time;
 extern double logic_update_alpha;
 
 extern spn_Context cfg_context;

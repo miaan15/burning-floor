@@ -8,6 +8,11 @@ if(NOT IS_DIRECTORY "${BOX2D_VENDOR_SOURCE_DIR}")
     message(STATUS "Cloning Box2D to ${BOX2D_VENDOR_SOURCE_DIR}")
     execute_process(
         COMMAND bash -c [[
+            mkdir -p vendor
+        ]]
+    )
+    execute_process(
+        COMMAND bash -c [[
             set -e
             git clone --depth 1 --branch v3.1.1 https://github.com/erincatto/box2d.git box2d
         ]]

@@ -8,5 +8,10 @@ game {
     player {
         move_speed: 2
         move_ani_delta: .05
+
+        attack_duration: .4
+        attack_cooldown: .6
+        attack_hold_ani_delta: .15
+        attack_act_ani_delta: .05
     }
 }

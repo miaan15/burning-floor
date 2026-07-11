@@ -10,7 +10,7 @@ extern bool *last_keyboard_state;
 
 void input_init();
 
-void input_pump();
+void input_update(bool *running);
 
 static inline void input_destroy() {
     if (last_keyboard_state) free(last_keyboard_state);

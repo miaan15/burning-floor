@@ -30,6 +30,11 @@ if(NOT IS_DIRECTORY ${SDL_VENDOR_SOURCE_DIR})
         message(STATUS "Cloning SDL3 to ${SDL_VENDOR_SOURCE_DIR}")
         execute_process(
             COMMAND bash -c [[
+                mkdir -p vendor
+            ]]
+        )
+        execute_process(
+            COMMAND bash -c [[
                 set -e
                 git clone --depth 1 --branch release-3.4.10 https://github.com/libsdl-org/SDL.git sdl
             ]]

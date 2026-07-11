@@ -38,7 +38,7 @@ endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug ")
     message(STATUS "Debug build detected: Enabling strict warnings.")
-    add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Wcast-align -Wnull-dereference)
+    add_compile_options(-g -Wall -Wextra -Wpedantic -Wshadow -Wcast-align -Wnull-dereference)
 endif()
 
 add_link_options(-lm)
