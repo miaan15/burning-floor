@@ -87,6 +87,16 @@ int main() {
 
     player_init();
 
+    enemy_defs_init();
+
+    const size_t ENEMY_CAP = 128;
+    enemy_mng_init(&enemy_mng, ENEMY_CAP);
+
+    // FIXME
+    enemy_make(&enemy_mng, ENEMY_MELEE);
+
+    enemy_melee_init(&enemy_mng, 1);
+
     bool running = 1;
     uint64_t last_time_ns = SDL_GetTicksNS();
     double logic_update_accumulator = 0.0;
@@ -122,6 +132,8 @@ int main() {
 
     player_destroy();
 
+    enemy_mng_destroy(&enemy_mng);
+
     SDL_DestroyRenderer(sdl_renderer);
     SDL_DestroyWindow(sdl_window);
     SDL_Quit();
@@ -129,6 +141,8 @@ int main() {
 
 void logic_update() {
     player_logic_update();
+
+    enemy_melee_update_behavior(&enemy_mng, 1);
 }
 
 void frame_update() {
@@ -137,11 +151,13 @@ void frame_update() {
 
 void render_update() {
     player_render_update();
+    enemy_melee_update_render(&enemy_mng, 1);
 
     SDL_SetRenderDrawColor(sdl_renderer, 155, 155, 155, 255);
     SDL_RenderClear(sdl_renderer);
 
     player_draw();
+    enemy_melee_draw(&enemy_mng, 1);
 
     SDL_RenderPresent(sdl_renderer);
 }

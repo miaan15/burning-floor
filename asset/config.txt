@@ -1,6 +1,9 @@
 asset {
     player {
-        sprite: "img/img_player.png"
+        image: "img/img_player.png"
+    }
+    enemy {
+        image: "img/img_enemy.png"
     }
 }
 
@@ -13,5 +16,10 @@ game {
         attack_cooldown: .6
         attack_hold_ani_delta: .15
         attack_act_ani_delta: .05
+    }
+    enemy {
+        melee {
+            move_speed: 1
+        }
     }
 }

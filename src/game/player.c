@@ -2,6 +2,7 @@
 
 #include "global.h"
 #include "input/input.h"
+#include "log/log.h"
 #include "spines/spines.h"
 #include <math.h>
 
@@ -15,6 +16,7 @@ void player_init() {
     spn_move(&cfgm_pl, "image");
     const char *image_path = spn_get_str(&cfgm_pl, 0);
     char full_path[256];
+    log_info("%s", image_path);
     snprintf(full_path, sizeof(full_path), "%s/%s", ASSET_PATH, image_path);
     player_data.image =
         img_load_tex(&image_sys, full_path, SDL_SCALEMODE_NEAREST);
