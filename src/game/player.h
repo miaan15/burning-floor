@@ -46,3 +46,10 @@ typedef struct {
 
 extern PlayerDef player_def;
 extern PlayerData player_data;
+
+void player_init();
+void player_logic_update();
+void player_frame_update();
+void player_render_update();
+void player_draw();
+void player_destroy();
