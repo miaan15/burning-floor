@@ -62,9 +62,13 @@ void player_logic_update() {
     // Get from attack input
     player_data.attack_trigger = 0;
     if (player_data.can_attack) {
-        if (player_data.attack_input) player_data.attack_trigger = 1;
+        if (player_data.attack_input) {
+            player_data.attack_trigger = 1;
+            player_data.attack_dir = player_data.attack_dir_input;
+        }
     }
     player_data.attack_input = 0;
+    player_data.attack_dir_input = (Vec2int){0};
 
     // Attack
     if (player_data.attack_trigger) {
@@ -73,8 +77,6 @@ void player_logic_update() {
 
         player_data.attack_end_time = cur_logic_time + player_def.attack_duration;
         player_data.attack_off_cd_time = cur_logic_time + player_def.attack_cooldown;
-
-        player_data.attack_dir = player_data.facing_dir;
     }
 
     if (cur_logic_time > player_data.attack_end_time) {
@@ -84,8 +86,9 @@ void player_logic_update() {
 
     if (player_data.attacking) {
         // TODO attack logic
-        player_data.move_dir.x = player_data.attack_dir.x;
-        player_data.move_dir.y = player_data.attack_dir.y;
+
+        player_data.facing_dir.x = player_data.attack_dir.x;
+        player_data.facing_dir.y = player_data.attack_dir.y;
     }
 
     if (cur_logic_time > player_data.attack_off_cd_time) {
@@ -102,18 +105,10 @@ void player_logic_update() {
 
 void player_frame_update() {
     player_data.move_input = (Vec2){0};
-    if (is_key_on(SCANCODE_W) || is_key_on(SCANCODE_UP))
-        player_data.move_input.y += 1;
-    if (is_key_on(SCANCODE_A) || is_key_on(SCANCODE_LEFT))
-        player_data.move_input.x -= 1;
-    if (is_key_on(SCANCODE_S) || is_key_on(SCANCODE_DOWN))
-        player_data.move_input.y -= 1;
-    if (is_key_on(SCANCODE_D) || is_key_on(SCANCODE_RIGHT))
-        player_data.move_input.x += 1;
-
-    if (is_key_down(SCANCODE_Z) || is_key_down(SCANCODE_J)) {
-        player_data.attack_input = 1;
-    }
+    if (is_key_on(SCANCODE_W)) player_data.move_input.y += 1;
+    if (is_key_on(SCANCODE_A)) player_data.move_input.x -= 1;
+    if (is_key_on(SCANCODE_S)) player_data.move_input.y -= 1;
+    if (is_key_on(SCANCODE_D)) player_data.move_input.x += 1;
 
     const float EPSILON = 0.0001;
     player_data.move_dir = player_data.move_input;
@@ -128,6 +123,21 @@ void player_frame_update() {
             player_data.facing_dir.x = 0;
             player_data.facing_dir.y = copysignf(1, player_data.move_input.y);
         }
+    }
+
+    if (player_data.attack_dir_input.x + player_data.attack_dir_input.y == 0) {
+        if (is_key_down(SCANCODE_UP   )) player_data.attack_dir_input.y += 1;
+        if (is_key_down(SCANCODE_LEFT )) player_data.attack_dir_input.x -= 1;
+        if (is_key_down(SCANCODE_DOWN )) player_data.attack_dir_input.y -= 1;
+        if (is_key_down(SCANCODE_RIGHT)) player_data.attack_dir_input.x += 1;
+    }
+
+    if (player_data.attack_dir_input.x + player_data.attack_dir_input.y != 0) {
+        player_data.attack_input = 1;
+    }
+    else if (is_key_down(SCANCODE_Z) || is_key_down(SCANCODE_J)) {
+        player_data.attack_input = 1;
+        player_data.attack_dir_input = player_data.facing_dir;
     }
 
     // Move Animation

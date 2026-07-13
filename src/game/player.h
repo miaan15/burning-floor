@@ -34,6 +34,7 @@ typedef struct {
 
     // Input
     Vec2 move_input;
+    Vec2int attack_dir_input;
     bool attack_input;
 
     // Components
