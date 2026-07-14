@@ -14,25 +14,21 @@ bool _is_alive(Pool *pool, size_t idx) {
     return (bitset[idx / 8] >> (idx % 8)) & 1;
 }
 
-void pool_init(Pool *pool, size_t esize, size_t cap) {
+void pool_init(Pool *pool, Arena *arena, size_t esize, size_t cap) {
     if (esize < sizeof(i32)) {
         log_err("pool_init(): esize (which is %zu) must be > 4 => change it to 4", esize);
         esize = 4;
     }
-    arena_init(&pool->arena, (cap * esize) + ((cap + 7) / 8));
+    pool->arena = pool->arena;
     pool->esize = esize;
     pool->cap = cap;
-    pool->data = arena_alloc(&pool->arena, cap * esize, 1);
-    pool->alive = arena_alloc(&pool->arena, (cap + 7) / 8, 1);
+    pool->data = arena_alloc(pool->arena, cap * esize, 1);
+    pool->alive = arena_alloc(pool->arena, (cap + 7) / 8, 1);
     pool->offset = pool->cnt = pool->next = 0;
 }
 
-void pool_destroy(Pool *pool) {
-    arena_destroy(&pool->arena);
-}
-
 i32 pool_add(Pool *pool) {
-    assert(pool->arena.buffer);
+    assert(pool->arena->buffer);
     if (pool->cnt >= pool->cap) {
         log_err("pool_add(): full capacity (which is %zu) => return -1", pool->cap);
         return -1;
@@ -55,7 +51,7 @@ i32 pool_add(Pool *pool) {
 }
 
 void pool_remv(Pool *pool, i32 obj) {
-    assert(pool->arena.buffer);
+    assert(pool->arena->buffer);
     if (obj < 0 || obj >= pool->offset) {
         log_err("pool_remv(): obj is out of bounds (requested %d)", obj);
         return;
@@ -73,8 +69,22 @@ void pool_remv(Pool *pool, i32 obj) {
 }
 
 void pool_reset(Pool *pool) {
-    assert(pool->arena.buffer);
+    assert(pool->arena->buffer);
     memset(pool->data, 0, pool->cap * pool->esize);
     memset(pool->alive, 0, (pool->cap + 7) / 8);
     pool->offset = pool->cnt = pool->next = 0;
+}
+
+void *pool_get(Pool *pool, i32 obj) {
+    assert(pool->arena->buffer);
+    if (obj < 0 || obj >= pool->offset) {
+        log_err("pool_get(): obj is out of bounds (requested %d) => return stub", obj);
+        return pool->data;
+    }
+    if (!_is_alive(pool, obj)) {
+        log_err("pool_get(): obj is removed (requested %d) => return stub", obj);
+        return pool->data;
+    }
+
+    return (char *)pool->data + (obj * pool->esize);
 }

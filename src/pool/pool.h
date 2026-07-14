@@ -5,7 +5,7 @@
 typedef int32_t i32;
 
 typedef struct {
-    Arena arena;
+    Arena *arena;
 
     size_t esize;
     void *data;
@@ -16,11 +16,16 @@ typedef struct {
     void *alive;
 } Pool;
 
-void pool_init(Pool *pool, size_t esize, size_t cap);
-void pool_destroy(Pool *pool);
+static inline size_t pool_msize(size_t esize, size_t cap) {
+    return (esize * cap) + ((cap + 7) / 8);
+}
+
+void pool_init(Pool *pool, Arena *arena, size_t esize, size_t cap);
 
 i32 pool_add(Pool *pool);
 
 void pool_remv(Pool *pool, i32 obj);
 
 void pool_reset(Pool *pool);
+
+void *pool_get(Pool *pool, i32 obj);
