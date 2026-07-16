@@ -17,7 +17,7 @@ void ett_mng_init(EttMng *mng, size_t etts_cap) {
     mng->aabb_tree = b2DynamicTree_Create();
 
     // stub
-    i32 stub = poola_new(&mng->ett_pool);
+    size_t stub = poola_new(&mng->ett_pool);
     assert(stub == 0);
     b2DynamicTree_CreateProxy(&mng->aabb_tree, (b2AABB){0}, 0, (uint64_t)stub);
 }
@@ -28,8 +28,8 @@ void ett_mng_destroy(EttMng *mng) {
     arena_destroy(&mng->arena);
 }
 
-i32 ett_new(EttMng *mng, vec2 pos, mat2 aabb) {
-    i32 ett = poola_new(&mng->ett_pool);
+size_t ett_new(EttMng *mng, vec2 pos, mat2 aabb) {
+    size_t ett = poola_new(&mng->ett_pool);
     EttIns *ins = (EttIns *)poola_get(&mng->ett_pool, ett);
 
     glm_vec2_copy(pos, ins->pos);
@@ -47,7 +47,7 @@ i32 ett_new(EttMng *mng, vec2 pos, mat2 aabb) {
     return ett;
 }
 
-void ett_remv(EttMng *mng, i32 ett) {
+void ett_remv(EttMng *mng, size_t ett) {
     if (!poola_alive(&mng->ett_pool, ett)) {
         log_warn("ett_remv(): entity %d is already removed or not valid");
         return;
@@ -59,7 +59,7 @@ void ett_remv(EttMng *mng, i32 ett) {
     log_debug("Removed an entity %d", ett);
 }
 
-EttIns *ett_get(EttMng *mng, i32 ett) {
+EttIns *ett_get(EttMng *mng, size_t ett) {
     if (!poola_alive(&mng->ett_pool, ett)) {
         log_warn("ett_get(): entity %d is already removed or not valid => return stub");
         return (EttIns *)poola_get(&mng->ett_pool, 0);
