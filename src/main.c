@@ -24,7 +24,7 @@ double logic_update_alpha = 0;
 
 spn_Context cfg_context = {0};
 
-ImageSys image_sys = {0};
+// ImageSys image_sys = {0};
 
 void logic_update();
 void frame_update();
@@ -83,7 +83,7 @@ int main() {
     const size_t IMAGE_CAP = 128;
     const size_t DRAWER_CAP = 1024;
 
-    img_sys_init(&image_sys, IMAGE_CAP, DRAWER_CAP);
+    // img_sys_init(&image_sys, IMAGE_CAP, DRAWER_CAP);
 
     player_init();
 
@@ -128,7 +128,7 @@ int main() {
         render_update();
     }
 
-    img_sys_destroy(&image_sys);
+    // img_sys_destroy(&image_sys);
 
     player_destroy();
 

@@ -18,9 +18,9 @@ void player_init() {
     char full_path[256];
     log_info("%s", image_path);
     snprintf(full_path, sizeof(full_path), "%s/%s", ASSET_PATH, image_path);
-    player_data.image =
-        img_load_tex(&image_sys, full_path, SDL_SCALEMODE_NEAREST);
-    player_data.drawer = img_make_drawer(&image_sys, player_data.image);
+    // player_data.image =
+    //     img_load_tex(&image_sys, full_path, SDL_SCALEMODE_NEAREST);
+    // player_data.drawer = img_make_drawer(&image_sys, player_data.image);
     }
 
     cfgm_pl = spn_find(spn_root(&cfg_context), "game/player");
@@ -201,14 +201,14 @@ void player_frame_update() {
 }
 
 void player_render_update() {
-    img_get_drawer_ptr(&image_sys, player_data.drawer)->srect =
-        (Rect){player_data.drawer_srect_pos.x, player_data.drawer_srect_pos.y,
-               20, 20};
-    img_feed_drawer_world(&image_sys, player_data.drawer, player_data.pos, 0, 1);
+    // img_get_drawer_ptr(&image_sys, player_data.drawer)->srect =
+    //     (Rect){player_data.drawer_srect_pos.x, player_data.drawer_srect_pos.y,
+    //            20, 20};
+    // img_feed_drawer_world(&image_sys, player_data.drawer, player_data.pos, 0, 1);
 }
 
 void player_draw() {
-    img_draw(&image_sys, player_data.drawer);
+    // img_draw(&image_sys, player_data.drawer);
 }
 
 void player_destroy() {}

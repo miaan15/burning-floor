@@ -19,8 +19,8 @@ void enemy_defs_init() {
         const char *image_path = spn_get_str(&cfgm_melee, 0);
         char full_path[256];
         snprintf(full_path, sizeof(full_path), "%s/%s", ASSET_PATH, image_path);
-        enemy_melee_def.image =
-            img_load_tex(&image_sys, full_path, SDL_SCALEMODE_NEAREST);
+        // enemy_melee_def.image =
+        //     img_load_tex(&image_sys, full_path, SDL_SCALEMODE_NEAREST);
     }
 
     cfgm_melee = spn_find(spn_root(&cfg_context), "game/enemy/melee");
@@ -120,7 +120,7 @@ void enemy_melee_init(EnemyMng *mng, size_t enemy) {
     }
     EnemyMeleeData *melee_data = &enemy_data->melee_data;
 
-    melee_data->drawer = img_make_drawer(&image_sys, enemy_melee_def.image);
+    // melee_data->drawer = img_make_drawer(&image_sys, enemy_melee_def.image);
 
     melee_data->has_target = 1;
 }
@@ -172,8 +172,8 @@ void enemy_melee_update_render(EnemyMng *mng, size_t enemy) {
     }
     EnemyMeleeData *melee_data = &enemy_data->melee_data;
 
-    img_get_drawer_ptr(&image_sys, melee_data->drawer)->srect = (Rect){0, 0, 20, 20};
-    img_feed_drawer_world(&image_sys, melee_data->drawer, melee_data->pos, 0, 1);
+    // img_get_drawer_ptr(&image_sys, melee_data->drawer)->srect = (Rect){0, 0, 20, 20};
+    // img_feed_drawer_world(&image_sys, melee_data->drawer, melee_data->pos, 0, 1);
 }
 
 void enemy_melee_draw(EnemyMng *mng, size_t enemy) {
@@ -188,5 +188,5 @@ void enemy_melee_draw(EnemyMng *mng, size_t enemy) {
     }
     EnemyMeleeData *melee_data = &enemy_data->melee_data;
 
-    img_draw(&image_sys, melee_data->drawer);
+    // img_draw(&image_sys, melee_data->drawer);
 }

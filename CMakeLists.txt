@@ -46,8 +46,9 @@ add_link_options(-lm)
 # ----------------------------------------------------------------------------------------
 # Vendors
 # ----------------------------------------------------------------------------------------
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/vendor_sdl.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/vendor_box2d.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/vendor_cglm.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/vendor_sdl.cmake)
 
 # ----------------------------------------------------------------------------------------
 # Vars
@@ -56,6 +57,7 @@ set(VENDOR_DIR ${CMAKE_SOURCE_DIR}/vendor)
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 set(INC_DIRS
     ${SRC_DIR}
+    ${CGLM_INCLUDE_DIR}
     ${SDL_INCLUDE_DIR}
     ${BOX2D_INCLUDE_DIR})
 

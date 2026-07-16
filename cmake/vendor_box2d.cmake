@@ -46,23 +46,23 @@ if(NOT IS_DIRECTORY ${BOX2D_VENDOR_BUILD_DIR})
     endif()
 endif()
 
-add_library(BOX2D_VENDOR_LIB INTERFACE IMPORTED)
+add_library(BOX2D_VENDOR_LIB SHARED IMPORTED)
 
 set(BOX2D_INCLUDE_DIR "${BOX2D_VENDOR_SOURCE_DIR}/include")
 target_include_directories(BOX2D_VENDOR_LIB INTERFACE "${BOX2D_INCLUDE_DIR}")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set_target_properties(BOX2D_VENDOR_LIB PROPERTIES
-        IMPORTED_LOCATION "${SDL_VENDOR_BUILD_DIR}/Release/box2d.dll"
-        IMPORTED_IMPLIB   "${SDL_VENDOR_BUILD_DIR}/Release/box2d.lib"
+        IMPORTED_LOCATION "shiet idk"
+        IMPORTED_IMPLIB   "shiet idk"
     )
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set_target_properties(BOX2D_VENDOR_LIB PROPERTIES
-        IMPORTED_LOCATION "${SDL_VENDOR_BUILD_DIR}/libbox2d.dylib"
+        IMPORTED_LOCATION "shiet idk"
     )
 else() 
     set_target_properties(BOX2D_VENDOR_LIB PROPERTIES
-        IMPORTED_LOCATION "${SDL_VENDOR_BUILD_DIR}/libbox2d.so"
+        IMPORTED_LOCATION "${BOX2D_VENDOR_BUILD_DIR}/bin/libbox2d.so"
     )
 endif()
 

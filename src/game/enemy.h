@@ -5,7 +5,6 @@
 
 typedef struct {
     float move_speed;
-
     size_t image;
 } EnemyMeleeDef;
 
