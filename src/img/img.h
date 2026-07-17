@@ -17,13 +17,11 @@ typedef struct {
     size_t len;
 } ImgMng;
 
-extern ImgMng img_mng;
-
 void img_mng_init(ImgMng *mng, size_t cap);
 void img_mng_destroy(ImgMng *mng);
 
 size_t img_new(ImgMng *mng, const char *path,
-            SDL_Renderer *renderer, SDL_ScaleMode scalemode);
+               SDL_Renderer *renderer, SDL_ScaleMode scalemode);
 
 ImgIns *img_get(ImgMng *mng, size_t img);
 
@@ -31,7 +29,7 @@ ImgIns *img_get(ImgMng *mng, size_t img);
 // SPRITE
 typedef struct {
     size_t img;
-    SDL_FRect rect;
+    mat2 rect;
 } SprIns;
 
 typedef struct {
@@ -42,12 +40,10 @@ typedef struct {
     ImgMng *img_mng;
 } SprMng;
 
-extern SprMng spr_mng;
-
 void spr_mng_init(SprMng *mng, size_t cap, ImgMng *img_mng);
 void spr_mng_destroy(SprMng *mng);
 
-size_t spr_new(SprMng *mng, size_t img, SDL_FRect rect);
+size_t spr_new(SprMng *mng, size_t img, mat2 rect);
 SprIns *spr_get(SprMng *mng, size_t spr);
 
 // =============================================================================
@@ -93,8 +89,6 @@ typedef struct {
     float pixel_scale;
 } DrwrMng;
 
-extern DrwrMng drwr_mng;
-
 void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *SprMng, float pixel_scale);
 void drwr_mng_destroy(DrwrMng *mng);
 void drwr_mng_update(DrwrMng *mng);
@@ -131,9 +125,9 @@ static inline void drwr_hook_set_wpos(DrwrMng *mng, size_t drwr,
     hook->wpos_scale = scale;
 }
 
-extern const float _drwr_hook_center_mid[2];
+extern float _drwr_hook_center_mid[2];
 #define DRWR_HOOK_CENTER_MID (_drwr_hook_center_mid)
-extern const int _drwr_hook_flip_horizontal;
+extern int _drwr_hook_flip_horizontal;
 #define DRWR_HOOK_FLIP_HORIZONTAL (&_drwr_hook_flip_horizontal)
-extern const int _drwr_hook_flip_vertical;
+extern int _drwr_hook_flip_vertical;
 #define DRWR_HOOK_FLIP_VERTICAL (&_drwr_hook_flip_vertical)

@@ -1,12 +1,8 @@
 #include "img.h"
 
-#include "cglm/vec2.h"
 #include "log/log.h"
 #include <assert.h>
-
-ImgMng img_mng = {0};
-SprMng spr_mng = {0};
-DrwrMng drwr_mng = {0};
+#include <cglm/cglm.h>
 
 // =============================================================================
 // IMAGE
@@ -22,12 +18,13 @@ void img_mng_init(ImgMng *mng, size_t cap) {
 }
 
 void img_mng_destroy(ImgMng *mng) {
+    for (size_t i = 0; i < mng->len; ++i) SDL_DestroyTexture(mng->raw[i].tex);
     free(mng->raw);
     mng->cap = mng->len = 0;
 }
 
 size_t img_new(ImgMng *mng, const char *path,
-            SDL_Renderer *renderer, SDL_ScaleMode scalemode) {
+               SDL_Renderer *renderer, SDL_ScaleMode scalemode) {
     if (mng->len >= mng->cap) {
         log_err("img_new(): full texture capacity => return stub");
         return 0;
@@ -87,10 +84,11 @@ void spr_mng_destroy(SprMng *mng) {
     mng->cap = mng->len = 0;
 }
 
-size_t spr_new(SprMng *mng, size_t img, SDL_FRect rect) {
-    mng->raw[mng->len] = (SprIns){img, rect};
-    log_debug("Made a new sprite %zu: img: %zu, srect: %f:%f:%fx%f",
-              mng->len, img, rect.x, rect.y, rect.w, rect.h);
+size_t spr_new(SprMng *mng, size_t img, mat2 rect) {
+    mng->raw[mng->len].img = img;
+    glm_mat2_copy(rect, mng->raw[mng->len].rect);
+    log_debug("Made a new sprite %zu: img: %zu, srect: %.1f : %.1f - %.1f x %.1f",
+              mng->len, img, rect[0][0], rect[0][1], rect[1][0], rect[1][1]);
     return mng->len++;
 }
 
@@ -144,7 +142,8 @@ void drwr_mng_update(DrwrMng *mng) {
             if (hook_ins->wpos_offset) glm_vec2_add(pos, hook_ins->wpos_offset, pos);
 
             SprIns *spr_ins = spr_get(mng->spr_mng, drwr_ins->spr);
-            vec2 size = {spr_ins->rect.x * mng->pixel_scale, spr_ins->rect.y * mng->pixel_scale};
+            vec2 size;
+            glm_vec2_scale(spr_ins->rect[1], mng->pixel_scale, size);
             if (hook_ins->wpos_scale) glm_vec2_scale(size, *hook_ins->wpos_scale ,size);
 
             vec2 off = {0, 0};
@@ -178,6 +177,7 @@ void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window) {
 
     poola_for(&mng->drwr_pool, drwr, ptr) {
         DrwrIns *ins = (DrwrIns *)ptr;
+        // log_trace("%zu: %f %f", drwr, ins->drect[0], ins->drect[1]);
 
         assert((size_t)ins->spr < _spr_mng->len);
         SprIns spr_ins = _spr_mng->raw[(size_t)ins->spr];
@@ -185,16 +185,19 @@ void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window) {
         assert((size_t)spr_ins.img < _img_mng->len);
         ImgIns img_ins = _img_mng->raw[(size_t)spr_ins.img];
 
+        SDL_FRect srect = (SDL_FRect){ spr_ins.rect[0][0], spr_ins.rect[0][1],
+                                       spr_ins.rect[1][0], spr_ins.rect[1][1] };
+
         SDL_FRect drect = (SDL_FRect){ ins->drect[0][0], ins->drect[0][1],
                                        ins->drect[1][0], ins->drect[1][1] };
-        drect.y = window_h - drect.y;
+        drect.y = window_h - drect.y - drect.h;
 
-        SDL_RenderTextureRotated(renderer, img_ins.tex, &spr_ins.rect, &drect,
+        SDL_RenderTextureRotated(renderer, img_ins.tex, &srect, &drect,
                                  (double)ins->rot, NULL, ins->flip);
     }
 }
 
-size_t drwr_new(DrwrMng *mng, size_t spr, size_t z_lv) {
+size_t drwr_new(DrwrMng *mng, size_t spr, size_t z) {
     size_t drwr = poola_new(&mng->drwr_pool);
     size_t hook = poola_new(&mng->hook_pool);
     assert(drwr == hook);
@@ -204,9 +207,12 @@ size_t drwr_new(DrwrMng *mng, size_t spr, size_t z_lv) {
     }
     DrwrIns *drwr_ins = (DrwrIns *)poola_get(&mng->drwr_pool, drwr);
     drwr_ins->spr = spr;
-    drwr_ins->z = z_lv;
+    drwr_ins->z = z;
     drwr_ins->active = true;
     // DrwrHook *hook_ins = (DrwrHook *)poola_get(&mng->hook_pool, hook);
+
+    log_debug("Made a new drawer %zu: sprite: %zu, z: %d", drwr, spr, z);
+
     return drwr;
 }
 
@@ -235,6 +241,6 @@ DrwrHook *drwr_get_hook(DrwrMng *mng, size_t drwr) {
     return poola_get(&mng->hook_pool, drwr);
 }
 
-const float _drwr_hook_center_mid[2] = { .5, .5 };
-const int _drwr_hook_flip_horizontal = SDL_FLIP_HORIZONTAL;
-const int _drwr_hook_flip_vertical = SDL_FLIP_VERTICAL;
+float _drwr_hook_center_mid[2] = { .5, .5 };
+int _drwr_hook_flip_horizontal = SDL_FLIP_HORIZONTAL;
+int _drwr_hook_flip_vertical = SDL_FLIP_VERTICAL;

@@ -5,6 +5,7 @@
 #include "global.h"
 #include "log/log.h"
 #include "input/input.h"
+#include "img/img.h"
 
 int window_width = 1280;
 int window_height = 720;
@@ -20,7 +21,11 @@ double logic_update_alpha = 0;
 
 spn_Context cfg_context = {0};
 
-// ImageSys image_sys = {0};
+ImgMng img_mng = {0};
+SprMng spr_mng = {0};
+DrwrMng drwr_mng = {0};
+
+vec2 _pos = {0};
 
 void logic_update();
 void frame_update();
@@ -76,22 +81,23 @@ int main() {
 
     input_init();
 
-    const size_t IMAGE_CAP = 128;
-    const size_t DRAWER_CAP = 1024;
+    const size_t IMAGE_CAP = 512;
+    const size_t SPRITE_CAP = 8192;
+    const size_t DRAWER_CAP = 32768;
+    img_mng_init(&img_mng, IMAGE_CAP);
+    spr_mng_init(&spr_mng, SPRITE_CAP, &img_mng);
+    drwr_mng_init(&drwr_mng, DRAWER_CAP, &spr_mng, 8);
 
-    // img_sys_init(&image_sys, IMAGE_CAP, DRAWER_CAP);
+    char _img_path[512];
+    snprintf(_img_path, sizeof(_img_path), "%s/%s", ASSET_PATH, "img/img_player.png");
 
-    // player_init();
-    //
-    // enemy_defs_init();
-    //
-    // const size_t ENEMY_CAP = 128;
-    // enemy_mng_init(&enemy_mng, ENEMY_CAP);
-    //
-    // // FIXME
-    // enemy_make(&enemy_mng, ENEMY_MELEE);
-    //
-    // enemy_melee_init(&enemy_mng, 1);
+    size_t img = img_new(&img_mng, _img_path, sdl_renderer, SDL_SCALEMODE_NEAREST);
+
+    size_t spr = spr_new(&spr_mng, img, (mat2){0, 0, 20, 20});
+
+    size_t drwr = drwr_new(&drwr_mng, spr, 0);
+
+    drwr_hook_set_wpos(&drwr_mng, drwr, _pos, NULL, DRWR_HOOK_CENTER_MID, NULL, NULL, NULL);
 
     bool running = 1;
     uint64_t last_time_ns = SDL_GetTicksNS();
@@ -124,11 +130,9 @@ int main() {
         render_update();
     }
 
-    // img_sys_destroy(&image_sys);
-
-    // player_destroy();
-    //
-    // enemy_mng_destroy(&enemy_mng);
+    drwr_mng_destroy(&drwr_mng);
+    spr_mng_destroy(&spr_mng);
+    img_mng_destroy(&img_mng);
 
     SDL_DestroyRenderer(sdl_renderer);
     SDL_DestroyWindow(sdl_window);
@@ -136,24 +140,23 @@ int main() {
 }
 
 void logic_update() {
-    // player_logic_update();
-    //
-    // enemy_melee_update_behavior(&enemy_mng, 1);
+    if (is_key_on(SCANCODE_W)) _pos[1] += 1;
+    if (is_key_on(SCANCODE_A)) _pos[0] -= 1;
+    if (is_key_on(SCANCODE_S)) _pos[1] -= 1;
+    if (is_key_on(SCANCODE_D)) _pos[0] += 1;
 }
 
 void frame_update() {
-    // player_frame_update();
+
 }
 
 void render_update() {
-    // player_render_update();
-    // enemy_melee_update_render(&enemy_mng, 1);
+    drwr_mng_update(&drwr_mng);
 
     SDL_SetRenderDrawColor(sdl_renderer, 155, 155, 155, 255);
     SDL_RenderClear(sdl_renderer);
 
-    // player_draw();
-    // enemy_melee_draw(&enemy_mng, 1);
+    drwr_mng_draw(&drwr_mng, sdl_renderer, sdl_window);
 
     SDL_RenderPresent(sdl_renderer);
 }
