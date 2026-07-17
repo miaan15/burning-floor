@@ -18,6 +18,7 @@ static inline void arena_init(Arena *ar, size_t size) {
     ar->buffer = malloc(size);
     ar->offset = 0;
     ar->cap = size;
+    memset(ar->buffer, 0, size);
 }
 
 static inline Arena arena_make(size_t size) {
@@ -39,7 +40,6 @@ static inline void *arena_alloc(Arena *ar, size_t size, size_t align) {
     size_t aligned = align_up(ar->offset, align);
     if (aligned + size > ar->cap) return NULL;
 
-    memset((char*)ar->buffer + ar->offset, 0, aligned + size - ar->offset);
     ar->offset = aligned + size;
 
     char *ptr = (char *)ar->buffer + aligned;

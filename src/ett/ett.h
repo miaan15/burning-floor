@@ -1,6 +1,6 @@
 #pragma once
 
-#include "allocator/allocator.h"
+#include "alloc/arena.h"
 #include "pool/pool.h"
 #include <box2d/collision.h>
 #include <cglm/types.h>

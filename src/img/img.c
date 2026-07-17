@@ -57,6 +57,14 @@ size_t img_new(ImgMng *mng, const char *path,
     return mng->len++;
 }
 
+ImgIns *img_get(ImgMng *mng, size_t img) {
+    if (img >= mng->len) {
+        log_err("img_get(): image %d is out of bounds => return stub", img);
+        return mng->raw;
+    }
+    return &mng->raw[img];
+}
+
 // =============================================================================
 // SPRITE
 void spr_mng_init(SprMng *mng, size_t cap, ImgMng *img_mng) {

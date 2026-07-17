@@ -25,6 +25,8 @@ void img_mng_destroy(ImgMng *mng);
 size_t img_new(ImgMng *mng, const char *path,
             SDL_Renderer *renderer, SDL_ScaleMode scalemode);
 
+ImgIns *img_get(ImgMng *mng, size_t img);
+
 // =============================================================================
 // SPRITE
 typedef struct {
