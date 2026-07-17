@@ -1,14 +1,10 @@
 #include <SDL3/SDL.h>
 #include <float.h>
-#include <math.h>
 
-#include "macro.h"
 #include "common.h"
 #include "global.h"
 #include "log/log.h"
 #include "input/input.h"
-#include "game/player.h"
-#include "game/enemy.h"
 
 int window_width = 1280;
 int window_height = 720;
@@ -85,17 +81,17 @@ int main() {
 
     // img_sys_init(&image_sys, IMAGE_CAP, DRAWER_CAP);
 
-    player_init();
-
-    enemy_defs_init();
-
-    const size_t ENEMY_CAP = 128;
-    enemy_mng_init(&enemy_mng, ENEMY_CAP);
-
-    // FIXME
-    enemy_make(&enemy_mng, ENEMY_MELEE);
-
-    enemy_melee_init(&enemy_mng, 1);
+    // player_init();
+    //
+    // enemy_defs_init();
+    //
+    // const size_t ENEMY_CAP = 128;
+    // enemy_mng_init(&enemy_mng, ENEMY_CAP);
+    //
+    // // FIXME
+    // enemy_make(&enemy_mng, ENEMY_MELEE);
+    //
+    // enemy_melee_init(&enemy_mng, 1);
 
     bool running = 1;
     uint64_t last_time_ns = SDL_GetTicksNS();
@@ -130,9 +126,9 @@ int main() {
 
     // img_sys_destroy(&image_sys);
 
-    player_destroy();
-
-    enemy_mng_destroy(&enemy_mng);
+    // player_destroy();
+    //
+    // enemy_mng_destroy(&enemy_mng);
 
     SDL_DestroyRenderer(sdl_renderer);
     SDL_DestroyWindow(sdl_window);
@@ -140,24 +136,24 @@ int main() {
 }
 
 void logic_update() {
-    player_logic_update();
-
-    enemy_melee_update_behavior(&enemy_mng, 1);
+    // player_logic_update();
+    //
+    // enemy_melee_update_behavior(&enemy_mng, 1);
 }
 
 void frame_update() {
-    player_frame_update();
+    // player_frame_update();
 }
 
 void render_update() {
-    player_render_update();
-    enemy_melee_update_render(&enemy_mng, 1);
+    // player_render_update();
+    // enemy_melee_update_render(&enemy_mng, 1);
 
     SDL_SetRenderDrawColor(sdl_renderer, 155, 155, 155, 255);
     SDL_RenderClear(sdl_renderer);
 
-    player_draw();
-    enemy_melee_draw(&enemy_mng, 1);
+    // player_draw();
+    // enemy_melee_draw(&enemy_mng, 1);
 
     SDL_RenderPresent(sdl_renderer);
 }

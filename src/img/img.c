@@ -112,8 +112,8 @@ void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *spr_mng, float pixel_scale)
     arena_size += poola_msize(sizeof(DrwrHook), cap);
     arena_init(&mng->arena, arena_size);
 
-    poola_init(&mng->drwr_pool, &mng->arena, sizeof(DrwrIns), cap);
-    poola_init(&mng->hook_pool, &mng->arena, sizeof(DrwrHook), cap);
+    poola_init(&mng->drwr_pool, &mng->arena, sizeof(DrwrIns), alignof(DrwrIns), cap);
+    poola_init(&mng->hook_pool, &mng->arena, sizeof(DrwrHook), alignof(DrwrHook), cap);
 
     mng->spr_mng = spr_mng;
 
@@ -152,7 +152,7 @@ void drwr_mng_update(DrwrMng *mng) {
 }
 
 void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window) {
-    i32 window_w, window_h;
+    int window_w, window_h;
     SDL_GetWindowSize(window, &window_w, &window_h);
 
     SprMng *_spr_mng = mng->spr_mng;

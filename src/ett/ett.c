@@ -12,7 +12,7 @@ void ett_mng_init(EttMng *mng, size_t etts_cap) {
     size_t arena_cap = poola_msize(sizeof(EttIns), etts_cap);
     arena_init(&mng->arena, arena_cap);
 
-    poola_init(&mng->ett_pool, &mng->arena, sizeof(EttIns), etts_cap);
+    poola_init(&mng->ett_pool, &mng->arena, sizeof(EttIns), alignof(EttIns), etts_cap);
 
     mng->aabb_tree = b2DynamicTree_Create();
 
