@@ -49,19 +49,19 @@ size_t ett_new(EttMng *mng, vec2 pos, mat2 aabb) {
 
 void ett_remv(EttMng *mng, size_t ett) {
     if (!poola_alive(&mng->ett_pool, ett)) {
-        log_warn("ett_remv(): entity %d is already removed or not valid");
+        log_err("ett_remv(): entity %zu is dead or invalid", ett);
         return;
     }
     poola_remv(&mng->ett_pool, ett);
 
     b2DynamicTree_DestroyProxy(&mng->aabb_tree, ett);
 
-    log_debug("Removed an entity %d", ett);
+    log_debug("Removed an entity %zu", ett);
 }
 
 EttIns *ett_get(EttMng *mng, size_t ett) {
     if (!poola_alive(&mng->ett_pool, ett)) {
-        log_warn("ett_get(): entity %d is already removed or not valid => return stub");
+        log_err("ett_get(): entity %zu is dead or invalid => return stub", ett);
         return (EttIns *)poola_get(&mng->ett_pool, 0);
     }
     return (EttIns *)poola_get(&mng->ett_pool, ett);

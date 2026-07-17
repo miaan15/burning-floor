@@ -52,18 +52,20 @@ SprIns *spr_get(SprMng *mng, size_t spr);
 
 // =============================================================================
 // DRAWER
-enum DrwrHookType {
+typedef enum {
     DRWR_HOOK_NONE = 0,
     DRWR_HOOK_WPOS
-};
+} DrwrHookType;
+
 typedef struct {
-    size_t type;
+    DrwrHookType type;
     union {
         struct {
             float *wpos_pos;
             float *wpos_offset;
             float *wpos_center;
-            bool *wpos_flip;
+            float *wpos_rot;
+            int *wpos_flip;
             float *wpos_scale;
         };
     };
@@ -72,11 +74,13 @@ typedef struct {
 typedef struct {
     size_t spr;
 
-    SDL_FRect drect;
-    SDL_FlipMode flip;
+    mat2 drect;
+    int flip;
+    float rot;
+
+    int z;
 
     bool active;
-    size_t z_lv;
 } DrwrIns;
 
 typedef struct {
@@ -99,23 +103,37 @@ void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window);
 size_t drwr_new(DrwrMng *mng, size_t spr, size_t z_lv);
 void drwr_remv(DrwrMng *mng, size_t drwr);
 
-void drwr_set_draw(DrwrMng *mng, size_t drwr, bool active);
+DrwrIns *drwr_get(DrwrMng *mng, size_t drwr);
+DrwrHook *drwr_get_hook(DrwrMng *mng, size_t drwr);
 
-void drwr_hook_wpos(DrwrMng *mng, size_t drwr,
-                    float *pos, float *offset, float *center, bool *flip, float *scale);
+static inline void drwr_set_active(DrwrMng *mng, size_t drwr, bool active) {
+    drwr_get(mng, drwr)->active = active;
+}
 
-extern const float _drwr_hook_wpos_pos_zero[2];
-extern const float _drwr_hook_wpos_offset_zero[2];
-extern const float _drwr_hook_wpos_center_mid[2];
-extern const float _drwr_hook_wpos_center_bl[2];
-extern const bool _drwr_hook_wpos_flip_no;
-extern const bool _drwr_hook_wpos_flip_yes;
-extern const float _drwr_hook_wpos_scale_one[2];
+static inline void drwr_set_z(DrwrMng *mng, size_t drwr, int z) {
+    drwr_get(mng, drwr)->z = z;
+}
 
-#define DRWR_HOOK_WPOS_POS_ZERO (_drwr_hook_wpos_pos_zero)
-#define DRWR_HOOK_WPOS_OFFSET_ZERO (_drwr_hook_wpos_offset_zero)
-#define DRWR_HOOK_WPOS_CENTER_MID (_drwr_hook_wpos_center_mid)
-#define DRWR_HOOK_WPOS_CENTER_BL (_drwr_hook_wpos_center_bl)
-#define DRWR_HOOK_WPOS_FLIP_NO (&_drwr_hook_wpos_flip_no)
-#define DRWR_HOOK_WPOS_FLIP_YES (&_drwr_hook_wpos_flip_yes)
-#define DRWR_HOOK_WPOS_SCALE_ONE (_drwr_hook_wpos_scale_one)
+static inline void drwr_hook_disable(DrwrMng *mng, size_t drwr) {
+    memset(drwr_get_hook(mng, drwr), 0, sizeof(DrwrHook));
+}
+
+static inline void drwr_hook_set_wpos(DrwrMng *mng, size_t drwr,
+                                      float *pos, float *offset, float *center,
+                                      float *rot, int *flip, float *scale) {
+    DrwrHook *hook = drwr_get_hook(mng, drwr);
+    hook->type = DRWR_HOOK_WPOS;
+    hook->wpos_pos = pos;
+    hook->wpos_offset = offset;
+    hook->wpos_center = center;
+    hook->wpos_rot = rot;
+    hook->wpos_flip = flip;
+    hook->wpos_scale = scale;
+}
+
+extern const float _drwr_hook_center_mid[2];
+#define DRWR_HOOK_CENTER_MID (_drwr_hook_center_mid)
+extern const int _drwr_hook_flip_horizontal;
+#define DRWR_HOOK_FLIP_HORIZONTAL (&_drwr_hook_flip_horizontal)
+extern const int _drwr_hook_flip_vertical;
+#define DRWR_HOOK_FLIP_VERTICAL (&_drwr_hook_flip_vertical)

@@ -42,9 +42,11 @@ static inline size_t pool_malign(size_t ealign) {
     return ealign > salign ? ealign : salign;
 }
 
-#define pool_for(pool_ptr, idx) \
+#define pool_for(pool_ptr, idx, ptr) \
     for (size_t idx = 0; idx < (pool_ptr)->offset; ++idx) \
-        if ((pool_ptr)->next[idx] == _ALIVE_VAL)
+        if ((pool_ptr)->next[idx] == (size_t)-1) \
+            for (void *ptr = (char *)(pool_ptr)->raw + (idx * (pool_ptr)->esize) \
+                , *__d = NULL; !__d; __d = (void *)1)
 
 typedef struct {
     Pool *pool;
@@ -111,9 +113,11 @@ static inline size_t poola_malign(size_t ealign) {
     return ealign > salign ? ealign : salign;
 }
 
-#define poola_for(poola_ptr, idx) \
+#define poola_for(poola_ptr, idx, ptr) \
     for (size_t idx = 0; idx < (poola_ptr)->offset; ++idx) \
-        if ((poola_ptr)->next[idx] == _ALIVE_VAL)
+        if ((poola_ptr)->next[idx] == (size_t)-1) \
+            for (void *ptr = (char *)(poola_ptr)->raw + (idx * (poola_ptr)->esize) \
+                , *__d = NULL; !__d; __d = (void *)1)
 
 typedef struct {
     PoolA *pool;
