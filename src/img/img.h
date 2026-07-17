@@ -73,6 +73,7 @@ typedef struct {
     mat2 drect;
     int flip;
     float rot;
+    vec2 center;
 
     int z;
 
@@ -86,10 +87,11 @@ typedef struct {
 
     SprMng *spr_mng;
 
-    float pixel_scale;
+    int pixel_size;
+    float scale;
 } DrwrMng;
 
-void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *SprMng, float pixel_scale);
+void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *spr_mng, int pixel_size, float scale);
 void drwr_mng_destroy(DrwrMng *mng);
 void drwr_mng_update(DrwrMng *mng);
 void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window);

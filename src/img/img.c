@@ -102,7 +102,7 @@ SprIns *spr_get(SprMng *mng, size_t spr) {
 
 // =============================================================================
 // DRAWER
-void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *spr_mng, float pixel_scale) {
+void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *spr_mng, int pixel_size, float scale) {
     ++cap; // stub
 
     size_t arena_size = 0;
@@ -115,8 +115,12 @@ void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *spr_mng, float pixel_scale)
     poola_init(&mng->hook_pool, &mng->arena, sizeof(DrwrHook), alignof(DrwrHook), cap);
 
     mng->spr_mng = spr_mng;
-
-    mng->pixel_scale = pixel_scale;
+    if (pixel_size < 1) {
+        log_warn("drwr_mng_init(): pixel_size must be >= 1 (which was %d)", pixel_size);
+        pixel_size = 1;
+    }
+    mng->pixel_size = pixel_size;
+    mng->scale = scale;
 
     // stub
     size_t drwr_stub = poola_new(&mng->drwr_pool);
@@ -142,8 +146,7 @@ void drwr_mng_update(DrwrMng *mng) {
             if (hook_ins->wpos_offset) glm_vec2_add(pos, hook_ins->wpos_offset, pos);
 
             SprIns *spr_ins = spr_get(mng->spr_mng, drwr_ins->spr);
-            vec2 size;
-            glm_vec2_scale(spr_ins->rect[1], mng->pixel_scale, size);
+            vec2 size; glm_vec2_copy(spr_ins->rect[1], size);
             if (hook_ins->wpos_scale) glm_vec2_scale(size, *hook_ins->wpos_scale ,size);
 
             vec2 off = {0, 0};
@@ -160,6 +163,11 @@ void drwr_mng_update(DrwrMng *mng) {
 
             drwr_ins->rot = 0;
             if (hook_ins->wpos_rot) drwr_ins->rot = *hook_ins->wpos_rot;
+
+            drwr_ins->center[0] = 0;
+            drwr_ins->center[1] = 0;
+            if (hook_ins->wpos_center) glm_vec2_copy(hook_ins->wpos_center, drwr_ins->center);
+            glm_vec2_mul(drwr_ins->center, size, drwr_ins->center);
         } break;
 
         case DRWR_HOOK_NONE: break;
@@ -168,6 +176,7 @@ void drwr_mng_update(DrwrMng *mng) {
     }
 }
 
+// TODO: add z level; pixel size
 void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window) {
     int window_w, window_h;
     SDL_GetWindowSize(window, &window_w, &window_h);
@@ -191,9 +200,13 @@ void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window) {
         SDL_FRect drect = (SDL_FRect){ ins->drect[0][0], ins->drect[0][1],
                                        ins->drect[1][0], ins->drect[1][1] };
         drect.y = window_h - drect.y - drect.h;
+        drect.w *= mng->scale;
+        drect.h *= mng->scale;
+
+        SDL_FPoint center = (SDL_FPoint){ ins->center[0], ins->drect[1][1] - ins->center[1] };
 
         SDL_RenderTextureRotated(renderer, img_ins.tex, &srect, &drect,
-                                 (double)ins->rot, NULL, ins->flip);
+                                 (double)ins->rot, &center, ins->flip);
     }
 }
 

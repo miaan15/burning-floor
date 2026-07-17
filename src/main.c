@@ -26,6 +26,8 @@ SprMng spr_mng = {0};
 DrwrMng drwr_mng = {0};
 
 vec2 _pos = {0};
+float _rot = 0;
+vec2 _scale = {1, 1};
 
 void logic_update();
 void frame_update();
@@ -86,7 +88,7 @@ int main() {
     const size_t DRAWER_CAP = 32768;
     img_mng_init(&img_mng, IMAGE_CAP);
     spr_mng_init(&spr_mng, SPRITE_CAP, &img_mng);
-    drwr_mng_init(&drwr_mng, DRAWER_CAP, &spr_mng, 8);
+    drwr_mng_init(&drwr_mng, DRAWER_CAP, &spr_mng, 1, 1);
 
     char _img_path[512];
     snprintf(_img_path, sizeof(_img_path), "%s/%s", ASSET_PATH, "img/img_player.png");
@@ -97,7 +99,7 @@ int main() {
 
     size_t drwr = drwr_new(&drwr_mng, spr, 0);
 
-    drwr_hook_set_wpos(&drwr_mng, drwr, _pos, NULL, DRWR_HOOK_CENTER_MID, NULL, NULL, NULL);
+    drwr_hook_set_wpos(&drwr_mng, drwr, _pos, NULL, NULL, &_rot, NULL, _scale);
 
     bool running = 1;
     uint64_t last_time_ns = SDL_GetTicksNS();
@@ -140,10 +142,14 @@ int main() {
 }
 
 void logic_update() {
-    if (is_key_on(SCANCODE_W)) _pos[1] += 1;
-    if (is_key_on(SCANCODE_A)) _pos[0] -= 1;
-    if (is_key_on(SCANCODE_S)) _pos[1] -= 1;
-    if (is_key_on(SCANCODE_D)) _pos[0] += 1;
+    if (is_key_on(SCANCODE_W)) _pos[1] += 10;
+    if (is_key_on(SCANCODE_A)) _pos[0] -= 10;
+    if (is_key_on(SCANCODE_S)) _pos[1] -= 10;
+    if (is_key_on(SCANCODE_D)) _pos[0] += 10;
+    if (is_key_on(SCANCODE_Z)) { _scale[0] += .1; _scale[1] += .1; };
+    if (is_key_on(SCANCODE_X)) { _scale[0] -= .1; _scale[1] -= .1; };
+    if (is_key_on(SCANCODE_E)) _rot += 1;
+    if (is_key_on(SCANCODE_Q)) _rot -= 1;
 }
 
 void frame_update() {
