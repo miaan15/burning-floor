@@ -87,11 +87,11 @@ typedef struct {
 
     SprMng *spr_mng;
 
-    int pixel_size;
     float scale;
+    int pixel_size;
 } DrwrMng;
 
-void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *spr_mng, int pixel_size, float scale);
+void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *spr_mng, float scale, int pixel_size);
 void drwr_mng_destroy(DrwrMng *mng);
 void drwr_mng_update(DrwrMng *mng);
 void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window);
@@ -126,6 +126,10 @@ static inline void drwr_hook_set_wpos(DrwrMng *mng, size_t drwr,
     hook->wpos_flip = flip;
     hook->wpos_scale = scale;
 }
+
+void drwr_feed_wpos(DrwrMng *mng, size_t drwr,
+                    vec2 pos, vec2 offset, vec2 center,
+                    vec2 rot, int *flip, vec2 scale);
 
 extern float _drwr_hook_center_mid[2];
 #define DRWR_HOOK_CENTER_MID (_drwr_hook_center_mid)
