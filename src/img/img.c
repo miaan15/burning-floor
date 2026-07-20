@@ -163,7 +163,6 @@ void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window) {
 
     poola_for(&mng->drwr_pool, drwr, ptr) {
         DrwrIns *ins = (DrwrIns *)ptr;
-        // log_trace("%zu: %f %f", drwr, ins->drect[0], ins->drect[1]);
 
         assert((size_t)ins->spr < _spr_mng->len);
         SprIns spr_ins = _spr_mng->raw[(size_t)ins->spr];

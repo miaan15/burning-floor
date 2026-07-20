@@ -13,6 +13,7 @@ void pool_init(Pool *pool, size_t esize, size_t ealign, size_t cap) {
     pool->next = (size_t *)((char *)pool->raw + align_up(cap * esize, alignof(size_t)));
     memset(pool->raw, 0, size);
     pool->offset = pool->cnt = pool->head = 0;
+    memset(pool->raw, 0, size);
 }
 
 void pool_destroy(Pool *pool) {
