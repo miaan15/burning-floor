@@ -1,214 +1,165 @@
-// #include "player.h"
-//
-// #include "global.h"
-// #include "input/input.h"
-// #include "log/log.h"
-// #include "spines/spines.h"
-// #include <math.h>
-//
-// PlayerDef player_def = {0};
-// PlayerData player_data = {0};
-//
-// void player_init() {
-//     spn_Mark cfgm_pl = spn_find(spn_root(&cfg_context), "asset/player");
-//
-//     { //
-//     spn_move(&cfgm_pl, "image");
-//     const char *image_path = spn_get_str(&cfgm_pl, 0);
-//     char full_path[256];
-//     log_info("%s", image_path);
-//     snprintf(full_path, sizeof(full_path), "%s/%s", ASSET_PATH, image_path);
-//     // player_data.image =
-//     //     img_load_tex(&image_sys, full_path, SDL_SCALEMODE_NEAREST);
-//     // player_data.drawer = img_make_drawer(&image_sys, player_data.image);
-//     }
-//
-//     cfgm_pl = spn_find(spn_root(&cfg_context), "game/player");
-//
-//     spn_move(&cfgm_pl, "move_speed");
-//     player_def.move_speed = spn_get_float(&cfgm_pl, 0);
-//
-//     spn_move_sibling(&cfgm_pl, "move_ani_delta");
-//     player_def.move_ani_delta = spn_get_float(&cfgm_pl, 0);
-//
-//     spn_move_sibling(&cfgm_pl, "attack_duration");
-//     player_def.attack_duration = spn_get_float(&cfgm_pl, 0);
-//
-//     spn_move_sibling(&cfgm_pl, "attack_cooldown");
-//     player_def.attack_cooldown = spn_get_float(&cfgm_pl, 0);
-//
-//     spn_move_sibling(&cfgm_pl, "attack_hold_ani_delta");
-//     player_def.attack_hold_ani_delta = spn_get_float(&cfgm_pl, 0);
-//
-//     spn_move_sibling(&cfgm_pl, "attack_act_ani_delta");
-//     player_def.attack_act_ani_delta = spn_get_float(&cfgm_pl, 0);
-// }
-//
-// void player_logic_update() {
-//     // Get from move input
-//     const float EPSILON = 0.0001;
-//     player_data.move_dir = player_data.move_input;
-//     float move_input_len =
-//         sqrtf((player_data.move_dir.x * player_data.move_dir.x) +
-//               (player_data.move_dir.y * player_data.move_dir.y));
-//     if (move_input_len > EPSILON) {
-//         player_data.move_dir.x /= move_input_len;
-//         player_data.move_dir.y /= move_input_len;
-//     } else {
-//         player_data.move_dir.x = 0;
-//         player_data.move_dir.y = 0;
-//     }
-//
-//     // Get from attack input
-//     player_data.attack_trigger = 0;
-//     if (player_data.can_attack) {
-//         if (player_data.attack_input) {
-//             player_data.attack_trigger = 1;
-//             player_data.attack_dir = player_data.attack_dir_input;
-//         }
-//     }
-//     player_data.attack_input = 0;
-//     player_data.attack_dir_input = (Vec2int){0};
-//
-//     // Attack
-//     if (player_data.attack_trigger) {
-//         player_data.can_attack = 0;
-//         player_data.attacking = 1;
-//
-//         player_data.attack_end_time = cur_logic_time + player_def.attack_duration;
-//         player_data.attack_off_cd_time = cur_logic_time + player_def.attack_cooldown;
-//     }
-//
-//     if (cur_logic_time > player_data.attack_end_time) {
-//         player_data.attack_end_time = INFINITY;
-//         player_data.attacking = 0;
-//     }
-//
-//     if (player_data.attacking) {
-//         // TODO attack logic
-//
-//         player_data.facing_dir.x = player_data.attack_dir.x;
-//         player_data.facing_dir.y = player_data.attack_dir.y;
-//     }
-//
-//     if (cur_logic_time > player_data.attack_off_cd_time) {
-//         player_data.can_attack = 1;
-//         player_data.attack_end_time = INFINITY;
-//     }
-//
-//     // Move
-//     if (!player_data.attacking) {
-//         player_data.pos.x += player_data.move_dir.x * player_def.move_speed;
-//         player_data.pos.y += player_data.move_dir.y * player_def.move_speed;
-//     }
-// }
-//
-// void player_frame_update() {
-//     player_data.move_input = (Vec2){0};
-//     if (is_key_on(SCANCODE_W)) player_data.move_input.y += 1;
-//     if (is_key_on(SCANCODE_A)) player_data.move_input.x -= 1;
-//     if (is_key_on(SCANCODE_S)) player_data.move_input.y -= 1;
-//     if (is_key_on(SCANCODE_D)) player_data.move_input.x += 1;
-//
-//     const float EPSILON = 0.0001;
-//     player_data.move_dir = player_data.move_input;
-//     float move_input_len =
-//         sqrtf((player_data.move_dir.x * player_data.move_dir.x) +
-//               (player_data.move_dir.y * player_data.move_dir.y));
-//     if (move_input_len > EPSILON) {
-//         if (fabsf(player_data.move_input.x) > EPSILON) {
-//             player_data.facing_dir.x = copysignf(1, player_data.move_input.x);
-//             player_data.facing_dir.y = 0;
-//         } else {
-//             player_data.facing_dir.x = 0;
-//             player_data.facing_dir.y = copysignf(1, player_data.move_input.y);
-//         }
-//     }
-//
-//     if (player_data.attack_dir_input.x + player_data.attack_dir_input.y == 0) {
-//         if (is_key_down(SCANCODE_UP   )) player_data.attack_dir_input.y += 1;
-//         if (is_key_down(SCANCODE_LEFT )) player_data.attack_dir_input.x -= 1;
-//         if (is_key_down(SCANCODE_DOWN )) player_data.attack_dir_input.y -= 1;
-//         if (is_key_down(SCANCODE_RIGHT)) player_data.attack_dir_input.x += 1;
-//     }
-//
-//     if (player_data.attack_dir_input.x + player_data.attack_dir_input.y != 0) {
-//         player_data.attack_input = 1;
-//     }
-//     else if (is_key_down(SCANCODE_Z) || is_key_down(SCANCODE_J)) {
-//         player_data.attack_input = 1;
-//         player_data.attack_dir_input = player_data.facing_dir;
-//     }
-//
-//     // Move Animation
-//     if (player_data.facing_dir.y == 1)
-//         player_data.drawer_srect_pos = (Vec2){0, 20};
-//     else if (player_data.facing_dir.y == -1)
-//         player_data.drawer_srect_pos = (Vec2){0,  0};
-//     else if (player_data.facing_dir.x == 1)
-//         player_data.drawer_srect_pos = (Vec2){0, 60};
-//     else
-//         player_data.drawer_srect_pos = (Vec2){0, 40};
-//
-//     if (move_input_len > EPSILON) {
-//         float delta = (float)cur_frame_time - player_data.last_move_frame_time;
-//         if (delta > player_def.move_ani_delta) {
-//             int n = (int)(delta / player_def.move_ani_delta);
-//             const int MAX_FRAME = 4;
-//             player_data.cur_move_frame = (player_data.cur_move_frame + n) % MAX_FRAME;
-//
-//             player_data.last_move_frame_time = (float)cur_frame_time + n * delta;
-//         }
-//
-//         player_data.drawer_srect_pos.x = 0 + player_data.cur_move_frame * 20;
-//     } else {
-//         player_data.cur_move_frame = 0;
-//         player_data.last_move_frame_time = cur_frame_time;
-//     }
-//
-//     // Attack Animation
-//     if (player_data.attacking) {
-//         if (player_data.attack_dir.y == 1)
-//             player_data.drawer_srect_pos = (Vec2){80, 20};
-//         else if (player_data.attack_dir.y == -1)
-//             player_data.drawer_srect_pos = (Vec2){80,  0};
-//         else if (player_data.attack_dir.x == 1)
-//             player_data.drawer_srect_pos = (Vec2){80, 60};
-//         else
-//             player_data.drawer_srect_pos = (Vec2){80, 40};
-//
-//         const int MAX_FRAME = 4;
-//         if (player_data.cur_attack_frame < MAX_FRAME) {
-//             float delta = (float)cur_frame_time - player_data.last_attack_frame_time;
-//             // FIXME logic error btw
-//             float cd = player_data.cur_attack_frame < 1 ? player_def.attack_hold_ani_delta
-//                                                         : player_def.attack_act_ani_delta;
-//             if (delta > cd) {
-//                 int n = (int)(delta / cd);
-//                 player_data.cur_attack_frame += n;
-//                 if (player_data.cur_attack_frame > MAX_FRAME)
-//                     player_data.cur_attack_frame = MAX_FRAME;
-//
-//                 player_data.last_attack_frame_time = (float)cur_frame_time + n * delta;
-//             }
-//         }
-//
-//         player_data.drawer_srect_pos.x = 80 + player_data.cur_attack_frame * 20;
-//     } else {
-//         player_data.cur_attack_frame = 0;
-//         player_data.last_attack_frame_time = cur_frame_time;
-//     }
-// }
-//
-// void player_render_update() {
-//     // img_get_drawer_ptr(&image_sys, player_data.drawer)->srect =
-//     //     (Rect){player_data.drawer_srect_pos.x, player_data.drawer_srect_pos.y,
-//     //            20, 20};
-//     // img_feed_drawer_world(&image_sys, player_data.drawer, player_data.pos, 0, 1);
-// }
-//
-// void player_draw() {
-//     // img_draw(&image_sys, player_data.drawer);
-// }
-//
-// void player_destroy() {}
+#include "player.h"
+#include "cglm/vec2.h"
+#include "common.h"
+#include "global.h"
+#include "img/img.h"
+#include "input/input.h"
+#include "log/log.h"
+#include "spines/spines.h"
+
+PlayerDef player_def = {0};
+Player player = {0};
+
+void player_init() {
+    log_debug("Start init player");
+
+    const size_t ARENA_SIZE = 1 * 1024 * 1024; // 1 MB
+    arena_init(&player.arena, ARENA_SIZE);
+
+    spn_Mark cfgm_pl = spn_find(spn_root(&cfg_context), "asset/player");
+
+    // Drwr
+    {
+    spn_move(&cfgm_pl, "image");
+    const char *image_path = spn_get_str(&cfgm_pl, 0);
+    char full_path[256];
+    snprintf(full_path, sizeof(full_path), "%s/%s", ASSET_PATH, image_path);
+
+    player_def.img = img_new(&img_mng, full_path, sdl_renderer, SDL_SCALEMODE_NEAREST);
+    }
+
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_run_d[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 0 + 20 * i, 0, 20, 20 });
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_atk_d[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 80 + 20 * i, 0, 20, 20 });
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_roll_d[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 160 + 20 * i, 0, 20, 20 });
+
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_run_u[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 0 + 20 * i, 20, 20, 20 });
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_atk_u[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 80 + 20 * i, 20, 20, 20 });
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_roll_u[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 160 + 20 * i, 20, 20, 20 });
+
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_run_l[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 0 + 20 * i, 40, 20, 20 });
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_atk_l[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 80 + 20 * i, 40, 20, 20 });
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_roll_l[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 160 + 20 * i, 40, 20, 20 });
+
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_run_r[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 0 + 20 * i, 60, 20, 20 });
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_atk_r[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 80 + 20 * i, 60, 20, 20 });
+    for (size_t i = 0; i < 4; ++i)
+        player_def.spr_roll_r[i] =
+            spr_new(&spr_mng, player_def.img, (mat2){ 160 + 20 * i, 60, 20, 20 });
+
+    player.drwr = drwr_new(&drwr_mng, player_def.spr_run_d[0], 0);
+
+    drwr_hook_set_wpos(&drwr_mng, player.drwr, player.pos, NULL, DRWR_HOOK_WPOS_CENTER_MID, NULL, NULL, NULL);
+
+    // Ani - Timeline
+    cfgm_pl = spn_find(spn_root(&cfg_context), "ani/player");
+    spn_step_flat(&cfgm_pl);
+
+    timelinea_init(&player.ani_run_tl, &player.arena, &cur_frame_time, 4, true);
+    spn_move_sibling(&cfgm_pl, "run");
+    for (size_t i = 0; i < 4; ++i) {
+        timelinea_add(&player.ani_run_tl, spn_get_float(&cfgm_pl, i));
+        log_debug("player ani_run timeline: stamp %zu at %.2f", i, player.ani_run_tl.stamps[i]);
+    }
+
+    timelinea_init(&player.ani_atk_tl, &player.arena, &cur_frame_time, 4, true);
+    spn_move_sibling(&cfgm_pl, "atk");
+    for (size_t i = 0; i < 4; ++i) {
+        timelinea_add(&player.ani_atk_tl, spn_get_float(&cfgm_pl, i));
+        log_debug("player ani_atk timeline: stamp %zu at %.2f", i, player.ani_atk_tl.stamps[i]);
+    }
+
+    timelinea_init(&player.ani_roll_tl, &player.arena, &cur_frame_time, 4, true);
+    spn_move_sibling(&cfgm_pl, "roll");
+    for (size_t i = 0; i < 4; ++i) {
+        timelinea_add(&player.ani_roll_tl, spn_get_float(&cfgm_pl, i));
+        log_debug("player ani_roll timeline: stamp %zu at %.2f", i, player.ani_roll_tl.stamps[i]);
+    }
+
+    // Params
+    cfgm_pl = spn_find(spn_root(&cfg_context), "game/player");
+    spn_step_flat(&cfgm_pl);
+
+    spn_move_sibling(&cfgm_pl, "move_speed");
+    player_def.move_speed = spn_get_float(&cfgm_pl, 0);
+
+    spn_move_sibling(&cfgm_pl, "atk_dur");
+    player_def.atk_dur = spn_get_float(&cfgm_pl, 0);
+
+    spn_move_sibling(&cfgm_pl, "atk_cd");
+    player_def.atk_cd = spn_get_float(&cfgm_pl, 0);
+
+    log_info("Init player: move_speed = %.2f; atk_dur = %.2f; atk_cd = %.2f",
+             player_def.move_speed, player_def.atk_dur, player_def.atk_cd);
+}
+
+void player_destroy() {
+    if (player.drwr) drwr_remv(&drwr_mng, player.drwr);
+    arena_destroy(&player.arena);
+}
+
+void player_logic_update() {
+    glm_vec2_copy(player.move_input, player.run_dir);
+    if (fabs(player.run_dir[0]) > 0.00001) {
+        player.face_dir[0] = player.run_dir[0] > 0 ? 1 : -1;;
+        player.face_dir[1] = 0;
+    } else {
+        player.face_dir[0] = 0;
+        player.face_dir[1] = player.run_dir[1] > 0 ? 1 : -1;
+    }
+
+    glm_vec2_zero(player.move_input);
+    glm_vec2_zero(player.atk_dir_inp);
+    player.atk_button_inp = false;
+
+    glm_vec2_muladd(player.run_dir,
+                    (vec2){player_def.move_speed, player_def.move_speed},
+                    player.pos);
+}
+
+void player_frame_update() {
+    if (is_key_on(SCANCODE_W) || is_key_on(SCANCODE_A) || is_key_on(SCANCODE_S) || is_key_on(SCANCODE_D)) {
+        glm_vec2_zero(player.move_input);
+
+        if (is_key_on(SCANCODE_W)) player.move_input[1] += 1;
+        if (is_key_on(SCANCODE_A)) player.move_input[0] -= 1;
+        if (is_key_on(SCANCODE_S)) player.move_input[1] -= 1;
+        if (is_key_on(SCANCODE_D)) player.move_input[0] += 1;
+        glm_vec2_normalize_to(player.move_input, player.move_input);
+    }
+
+    if (is_key_on(SCANCODE_UP) || is_key_on(SCANCODE_LEFT) || is_key_on(SCANCODE_DOWN) || is_key_on(SCANCODE_RIGHT)) {
+        glm_vec2_zero(player.atk_dir_inp);
+
+        if (is_key_on(SCANCODE_UP)) player.atk_dir_inp[1] += 1;
+        if (is_key_on(SCANCODE_LEFT)) player.atk_dir_inp[0] -= 1;
+        if (is_key_on(SCANCODE_DOWN)) player.atk_dir_inp[1] -= 1;
+        if (is_key_on(SCANCODE_RIGHT)) player.atk_dir_inp[0] += 1;
+        glm_vec2_normalize_to(player.atk_dir_inp, player.atk_dir_inp);
+    }
+
+    if (is_key_down(SCANCODE_J)) {
+        player.atk_button_inp = true;
+    }
+}

@@ -276,6 +276,6 @@ void drwr_feed_wpos(DrwrMng *mng, size_t drwr,
     glm_vec2_copy(_center, drwr_ins->center);
 }
 
-float _drwr_hook_center_mid[2] = { .5, .5 };
-int _drwr_hook_flip_horizontal = SDL_FLIP_HORIZONTAL;
-int _drwr_hook_flip_vertical = SDL_FLIP_VERTICAL;
+float _drwr_hook_wpos_center_mid[2] = { .5, .5 };
+int _drwr_hook_wpos_flip_horizontal = SDL_FLIP_HORIZONTAL;
+int _drwr_hook_wpos_flip_vertical = SDL_FLIP_VERTICAL;

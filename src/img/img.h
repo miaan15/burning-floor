@@ -131,9 +131,9 @@ void drwr_feed_wpos(DrwrMng *mng, size_t drwr,
                     vec2 pos, vec2 offset, vec2 center,
                     vec2 rot, int *flip, vec2 scale);
 
-extern float _drwr_hook_center_mid[2];
-#define DRWR_HOOK_CENTER_MID (_drwr_hook_center_mid)
-extern int _drwr_hook_flip_horizontal;
-#define DRWR_HOOK_FLIP_HORIZONTAL (&_drwr_hook_flip_horizontal)
-extern int _drwr_hook_flip_vertical;
-#define DRWR_HOOK_FLIP_VERTICAL (&_drwr_hook_flip_vertical)
+extern float _drwr_hook_wpos_center_mid[2];
+#define DRWR_HOOK_WPOS_CENTER_MID (_drwr_hook_wpos_center_mid)
+extern int _drwr_hook_wpos_flip_horizontal;
+#define DRWR_HOOK_WPOS_FLIP_HORIZONTAL (&_drwr_hook_wpos_flip_horizontal)
+extern int _drwr_hook_wpos_flip_vertical;
+#define DRWR_HOOK_WPOS_FLIP_VERTICAL (&_drwr_hook_wpos_flip_vertical)

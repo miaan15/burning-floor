@@ -2,6 +2,7 @@
 #include <float.h>
 
 #include "common.h"
+#include "game/player.h"
 #include "global.h"
 #include "log/log.h"
 #include "input/input.h"
@@ -15,19 +16,15 @@ SDL_Renderer *sdl_renderer = NULL;
 int tps = 50;
 int pixel_size = 4;
 
-double cur_frame_time = 0;
-double cur_logic_time = 0;
-double logic_update_alpha = 0;
+float cur_frame_time = 0;
+float cur_logic_time = 0;
+float logic_update_alpha = 0;
 
 spn_Context cfg_context = {0};
 
 ImgMng img_mng = {0};
 SprMng spr_mng = {0};
 DrwrMng drwr_mng = {0};
-
-vec2 _pos = {0};
-float _rot = 0;
-vec2 _scale = {1, 1};
 
 void logic_update();
 void frame_update();
@@ -90,23 +87,14 @@ int main() {
     spr_mng_init(&spr_mng, SPRITE_CAP, &img_mng);
     drwr_mng_init(&drwr_mng, DRAWER_CAP, &spr_mng, 10, 1);
 
-    char _img_path[512];
-    snprintf(_img_path, sizeof(_img_path), "%s/%s", ASSET_PATH, "img/img_player.png");
-
-    size_t img = img_new(&img_mng, _img_path, sdl_renderer, SDL_SCALEMODE_NEAREST);
-
-    size_t spr = spr_new(&spr_mng, img, (mat2){0, 0, 20, 20});
-
-    size_t drwr = drwr_new(&drwr_mng, spr, 0);
-
-    drwr_hook_set_wpos(&drwr_mng, drwr, _pos, NULL, DRWR_HOOK_CENTER_MID, &_rot, NULL, _scale);
+    player_init();
 
     bool running = 1;
     uint64_t last_time_ns = SDL_GetTicksNS();
-    double logic_update_accumulator = 0.0;
+    float logic_update_accumulator = 0.0;
     while (running) {
         uint64_t cur_time_ns = SDL_GetTicksNS();
-        double dt = (double)(cur_time_ns - last_time_ns) / 1000000000.0;
+        float dt = (cur_time_ns - last_time_ns) / 1e9;
         last_time_ns = cur_time_ns;
 
         if (dt > 1) dt = 1; // still need 1 fps
@@ -116,7 +104,7 @@ int main() {
 
         input_update(&running);
 
-        const double logic_update_dt = (double)1.0 / tps;
+        const float logic_update_dt = (float)1.0 / tps;
         while (logic_update_accumulator >= logic_update_dt) {
             cur_logic_time += logic_update_dt;
 
@@ -142,17 +130,11 @@ int main() {
 }
 
 void logic_update() {
+    player_logic_update();
 }
 
 void frame_update() {
-    if (is_key_on(SCANCODE_W)) _pos[1] += 1;
-    if (is_key_on(SCANCODE_A)) _pos[0] -= 1;
-    if (is_key_on(SCANCODE_S)) _pos[1] -= 1;
-    if (is_key_on(SCANCODE_D)) _pos[0] += 1;
-    if (is_key_on(SCANCODE_Z)) { _scale[0] += .1; _scale[1] += .1; };
-    if (is_key_on(SCANCODE_X)) { _scale[0] -= .1; _scale[1] -= .1; };
-    if (is_key_on(SCANCODE_E)) _rot += 1;
-    if (is_key_on(SCANCODE_Q)) _rot -= 1;
+    player_frame_update();
 }
 
 void render_update() {
