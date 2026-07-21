@@ -102,6 +102,10 @@ void drwr_remv(DrwrMng *mng, size_t drwr);
 DrwrIns *drwr_get(DrwrMng *mng, size_t drwr);
 DrwrHook *drwr_get_hook(DrwrMng *mng, size_t drwr);
 
+static inline void drwr_set_spr(DrwrMng *mng, size_t drwr, size_t spr) {
+    drwr_get(mng, drwr)->spr = spr;
+}
+
 static inline void drwr_set_active(DrwrMng *mng, size_t drwr, bool active) {
     drwr_get(mng, drwr)->active = active;
 }

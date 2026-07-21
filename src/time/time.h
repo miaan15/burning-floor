@@ -11,8 +11,6 @@ typedef struct {
     size_t cap;
     size_t len;
 
-    float stamp_max;
-
     bool running;
     bool loop;
 
@@ -49,8 +47,6 @@ typedef struct {
     float *stamps;
     size_t cap;
     size_t len;
-
-    float stamp_max;
 
     bool running;
     bool loop;

@@ -85,7 +85,7 @@ int main() {
     const size_t DRAWER_CAP = 32768;
     img_mng_init(&img_mng, IMAGE_CAP);
     spr_mng_init(&spr_mng, SPRITE_CAP, &img_mng);
-    drwr_mng_init(&drwr_mng, DRAWER_CAP, &spr_mng, 10, 1);
+    drwr_mng_init(&drwr_mng, DRAWER_CAP, &spr_mng, 4, 1);
 
     player_init();
 

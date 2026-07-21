@@ -20,7 +20,7 @@ void _timeline_update(Timeline *tl) {
         tl->cur_stamp = tl->len;
         return;
     } else {
-        time = fmodf(time, tl->stamp_max);
+        time = fmodf(time, tl->stamps[tl->len - 1]);
         if (tl->cur_stamp != 0) {
             if (time < tl->stamps[tl->cur_stamp - 1]) {
                 tl->cur_stamp = 0;
@@ -41,7 +41,6 @@ void timeline_init(Timeline *tl, float *time, size_t cap, bool loop) {
     tl->stamps = (float *)malloc(cap * sizeof(float));
     tl->cap = cap;
     tl->len = 0;
-    tl->stamp_max = 0;
     tl->running = false;
     tl->loop = loop;
     tl->cur_stamp = 0;
@@ -55,7 +54,6 @@ void timeline_destroy(Timeline *tl) {
     tl->time_ref = NULL;
     tl->stamps = NULL;
     tl->cap = tl->len = 0;
-    tl->stamp_max = 0;
     tl->running = tl->loop = false;
     tl->cur_stamp = 0;
     tl->started_time = tl->paused_delta = 0;
@@ -157,7 +155,7 @@ void _timelinea_update(TimelineA *tl) {
         tl->cur_stamp = tl->len;
         return;
     } else {
-        time = fmodf(time, tl->stamp_max);
+        time = fmodf(time, tl->stamps[tl->len - 1]);
         if (tl->cur_stamp != 0) {
             if (time < tl->stamps[tl->cur_stamp - 1]) {
                 tl->cur_stamp = 0;
@@ -179,7 +177,6 @@ void timelinea_init(TimelineA *tl, Arena *arena, float *time, size_t cap, bool l
     tl->stamps = (float *)arena_alloc(arena, cap * sizeof(float), alignof(float));
     tl->cap = cap;
     tl->len = 0;
-    tl->stamp_max = 0;
     tl->running = false;
     tl->loop = loop;
     tl->cur_stamp = 0;

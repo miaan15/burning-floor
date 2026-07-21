@@ -30,8 +30,16 @@ typedef struct {
     vec2 pos;
 
     vec2 run_dir;
+    vec2 face_dir;
+    bool atk_trggr;
+    bool atk_able;
+    bool atking;
+    vec2 atk_dir;
+    float atk_end_time;
+    float atk_off_cd_time;
 
-    ivec2 face_dir;
+    int cur_ani;
+    int last_ani;
 
     vec2 move_input;
     vec2 atk_dir_inp;
@@ -40,6 +48,7 @@ typedef struct {
     size_t drwr;
 
     Arena arena;
+
     TimelineA ani_run_tl;
     TimelineA ani_atk_tl;
     TimelineA ani_roll_tl;
@@ -48,56 +57,15 @@ typedef struct {
 extern PlayerDef player_def;
 extern Player player;
 
+enum PlayerAni {
+    ANI_PLAYER_IDLE = 0,
+    ANI_PLAYER_RUN,
+    ANI_PLAYER_ATK,
+    ANI_PLAYER_ROLL,
+};
+
 void player_init();
 void player_destroy();
 
 void player_logic_update();
 void player_frame_update();
-
-
-// typedef struct {
-//     float move_speed;
-//     float move_ani_delta;
-//
-//     float attack_duration;
-//     float attack_cooldown;
-//     float attack_hold_ani_delta;
-//     float attack_act_ani_delta;
-// } PlayerDef;
-//
-// typedef struct {
-//     //
-//     Vec2 pos;
-//
-//     Vec2 move_dir;
-//
-//     bool can_attack;
-//     bool attack_trigger;
-//     bool attacking;
-//     float attack_end_time;
-//     float attack_off_cd_time;
-//     Vec2int attack_dir;
-//
-//     // Animation
-//     Vec2int facing_dir;
-//     int cur_move_frame;
-//     float last_move_frame_time;
-//     int cur_attack_frame;
-//     float last_attack_frame_time;
-//
-//     // Input
-//     Vec2 move_input;
-//     Vec2int attack_dir_input;
-//     bool attack_input;
-//
-//     // Components
-//     size_t drawer;
-//     Vec2 drawer_srect_pos;
-//
-//     // Resources
-//     size_t image;
-// } PlayerData;
-//
-// extern PlayerDef player_def;
-// extern PlayerData player_data;
-//
