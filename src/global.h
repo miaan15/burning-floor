@@ -3,6 +3,7 @@
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_video.h>
 
+#include "ett/ett.h"
 #include "img/img.h"
 #include "spines/spines.h"
 
@@ -19,6 +20,8 @@ extern float cur_logic_time;
 extern float logic_update_alpha;
 
 extern spn_Context cfg_context;
+
+extern EttMng ett_mng;
 
 extern ImgMng img_mng;
 extern SprMng spr_mng;

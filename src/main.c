@@ -2,11 +2,10 @@
 #include <float.h>
 
 #include "common.h"
-#include "game/player.h"
+#include "player/player.h"
 #include "global.h"
 #include "log/log.h"
 #include "input/input.h"
-#include "img/img.h"
 
 int window_width = 1280;
 int window_height = 720;
@@ -21,6 +20,8 @@ float cur_logic_time = 0;
 float logic_update_alpha = 0;
 
 spn_Context cfg_context = {0};
+
+EttMng ett_mng = {0};
 
 ImgMng img_mng = {0};
 SprMng spr_mng = {0};
@@ -80,8 +81,11 @@ int main() {
 
     input_init();
 
-    const size_t IMAGE_CAP = 512;
-    const size_t SPRITE_CAP = 8192;
+    const size_t ETT_CAP = 32768;
+    ett_mng_init(&ett_mng, ETT_CAP);
+
+    const size_t IMAGE_CAP = 1024;
+    const size_t SPRITE_CAP = 16384;
     const size_t DRAWER_CAP = 32768;
     img_mng_init(&img_mng, IMAGE_CAP);
     spr_mng_init(&spr_mng, SPRITE_CAP, &img_mng);

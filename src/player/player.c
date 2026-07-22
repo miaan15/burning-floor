@@ -13,18 +13,16 @@ Player player = {0};
 void player_init() {
     log_debug("Start init player");
 
-    glm_vec2_zero(player.pos);
-    glm_vec2_zero(player.run_dir);
-    player.face_dir[0] = 0; player.face_dir[1] = -1;
-    player.cur_ani = player.last_ani = ANI_PLAYER_IDLE;
-    glm_vec2_zero(player.move_input);
-    glm_vec2_zero(player.atk_dir_inp);
-    player.atk_button_inp = 0;
+    memset(&player_def, 0, sizeof(PlayerDef));
+    memset(&player, 0, sizeof(Player));
 
     const size_t ARENA_SIZE = 1 * 1024 * 1024; // 1 MB
     arena_init(&player.arena, ARENA_SIZE);
 
     spn_Mark cfgm_pl = spn_find(spn_root(&cfg_context), "asset/player");
+
+    vec2 zero_vec2 = {0, 0};
+    player.ett = ett_new(&ett_mng, zero_vec2, zero_vec2, zero_vec2, zero_vec2, 1);
 
     // Drwr
     {
@@ -78,7 +76,8 @@ void player_init() {
 
     player.drwr = drwr_new(&drwr_mng, player_def.spr_run_d[0], 0);
 
-    drwr_hook_set_wpos(&drwr_mng, player.drwr, player.pos, NULL, DRWR_HOOK_WPOS_CENTER_MID, NULL, NULL, NULL);
+    EttIns *ett_ins = ett_get(&ett_mng, player.ett);
+    drwr_hook_set_swpos(&drwr_mng, player.drwr, ett_ins->pos, NULL, NULL);
 
     // Ani - Timeline
     cfgm_pl = spn_find(spn_root(&cfg_context), "ani/player");
@@ -169,6 +168,8 @@ void player_logic_update() {
     player.atk_button_inp = false;
 
     // Actual
+    EttIns *ett_ins = ett_get(&ett_mng, player.ett);
+
     player.atking = false;
     if (cur_logic_time <= player.atk_end_time) player.atking = true;
 
@@ -183,8 +184,8 @@ void player_logic_update() {
     }
 
     glm_vec2_muladd(player.run_dir,
-            (vec2){player_def.move_speed, player_def.move_speed},
-            player.pos);
+                    (vec2){player_def.move_speed, player_def.move_speed},
+                    ett_ins->pos);
 
     // Ani
     player.cur_ani = ANI_PLAYER_IDLE;

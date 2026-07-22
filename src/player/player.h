@@ -28,8 +28,6 @@ typedef struct {
 } PlayerDef;
 
 typedef struct {
-    vec2 pos;
-
     vec2 run_dir;
     vec2 face_dir;
     bool atk_trggr;

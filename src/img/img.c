@@ -1,6 +1,7 @@
 #include "img.h"
 
 #include "log/log.h"
+#include "macro.h"
 #include <assert.h>
 #include <cglm/cglm.h>
 
@@ -26,6 +27,7 @@ void img_mng_destroy(ImgMng *mng) {
 
 size_t img_new(ImgMng *mng, const char *path,
                SDL_Renderer *renderer, SDL_ScaleMode scalemode) {
+    assert(mng->raw);
     if (mng->len >= mng->cap) {
         log_err("img_new(): full texture capacity => return stub");
         return 0;
@@ -57,6 +59,7 @@ size_t img_new(ImgMng *mng, const char *path,
 }
 
 ImgIns *img_get(ImgMng *mng, size_t img) {
+    assert(mng->raw);
     if (img >= mng->len) {
         log_err("img_get(): image %zu is dead or invalid => return stub", img);
         return mng->raw;
@@ -87,14 +90,16 @@ void spr_mng_destroy(SprMng *mng) {
 }
 
 size_t spr_new(SprMng *mng, size_t img, mat2 rect) {
+    assert(mng->raw);
     mng->raw[mng->len].img = img;
-    glm_mat2_copy(rect, mng->raw[mng->len].rect);
+    glm_mat2_copy(rect, mng->raw[mng->len].srect);
     log_debug("Made a new sprite %zu: img: %zu, srect: %.0f:%.0f-%.0fx%.0f",
               mng->len, img, rect[0][0], rect[0][1], rect[1][0], rect[1][1]);
     return mng->len++;
 }
 
 SprIns *spr_get(SprMng *mng, size_t spr) {
+    assert(mng->raw);
     if (spr >= mng->len) {
         log_err("spr_get(): sprite %zu is dead or invalid => return stub", spr);
         return mng->raw;
@@ -145,10 +150,15 @@ void drwr_mng_update(DrwrMng *mng) {
 
         switch (hook_ins->type) {
         case DRWR_HOOK_WPOS: {
-            drwr_feed_wpos(mng, drwr,
-                           hook_ins->wpos_pos, hook_ins->wpos_offset,
-                           hook_ins->wpos_center, hook_ins->wpos_rot,
+            drwr_feed_wpos(drwr_ins,
+                           hook_ins->wpos_pos, hook_ins->wpos_offs,
+                           hook_ins->wpos_centr, hook_ins->wpos_rot,
                            hook_ins->wpos_flip, hook_ins->wpos_scale);
+        } break;
+
+        case DRWR_HOOK_SWPOS: {
+            drwr_feed_swpos(drwr_ins,
+                            hook_ins->swpos_pos, hook_ins->swpos_rot,hook_ins->swpos_scale);
         } break;
 
         case DRWR_HOOK_NONE: break;
@@ -174,8 +184,8 @@ void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window) {
         assert((size_t)spr_ins.img < _img_mng->len);
         ImgIns img_ins = _img_mng->raw[(size_t)spr_ins.img];
 
-        SDL_FRect srect = (SDL_FRect){ spr_ins.rect[0][0], spr_ins.rect[0][1],
-                                       spr_ins.rect[1][0], spr_ins.rect[1][1] };
+        SDL_FRect srect = (SDL_FRect){ spr_ins.srect[0][0], spr_ins.srect[0][1],
+                                       spr_ins.srect[1][0], spr_ins.srect[1][1] };
 
         SDL_FRect drect = (SDL_FRect){ ins->drect[0][0], ins->drect[0][1],
                                        ins->drect[1][0], ins->drect[1][1] };
@@ -191,7 +201,7 @@ void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window) {
 
         drect.y = window_h - drect.y - drect.h;
 
-        SDL_FPoint center = (SDL_FPoint){ ins->center[0], ins->drect[1][1] - ins->center[1] };
+        SDL_FPoint center = (SDL_FPoint){ ins->centr[0], ins->drect[1][1] - ins->centr[1] };
         center.x *= mng->pixel_size * mng->scale;
         center.y *= mng->pixel_size * mng->scale;
 
@@ -201,6 +211,7 @@ void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window) {
 }
 
 Key drwr_new(DrwrMng *mng, size_t spr, int z) {
+    assert(mng->arena.buffer);
     Key drwr = poola_new(&mng->drwr_pool);
     Key hook = poola_new(&mng->hook_pool);
 
@@ -216,14 +227,18 @@ Key drwr_new(DrwrMng *mng, size_t spr, int z) {
     drwr_ins->z = z;
     drwr_ins->active = true;
 
-    log_debug("Made a new drawer %u:%u: sprite: %zu, z: %zu", drwr.idx, drwr.gen, spr, z);
+    SprIns *spr_ins = spr_get(mng->spr_mng, spr);
+    glm_vec2_copy(spr_ins->srect[1], drwr_ins->srect_size);
+
+    log_debug("Made a new drawer %u.%u: sprite: %zu, z: %zu", drwr.idx, drwr.gen, spr, z);
 
     return drwr;
 }
 
 void drwr_remv(DrwrMng *mng, Key drwr) {
+    assert(mng->arena.buffer);
     if (!poola_alive(&mng->drwr_pool, drwr)) {
-        log_err("drwr_remv(): drawer %u:%u is dead or invalid", drwr.idx, drwr.gen);
+        log_err("drwr_remv(): drawer %u.%u is dead or invalid", drwr.idx, drwr.gen);
         return;
     }
     poola_remv(&mng->drwr_pool, drwr);
@@ -231,68 +246,89 @@ void drwr_remv(DrwrMng *mng, Key drwr) {
 }
 
 DrwrIns *drwr_get(DrwrMng *mng, Key drwr) {
+    assert(mng->arena.buffer);
     if (!poola_alive(&mng->drwr_pool, drwr)) {
-        log_err("drwr_get(): drawer %u:%u is dead or invalid => return stub", drwr.idx, drwr.gen);
+        log_err("drwr_get(): drawer %u.%u is dead or invalid => return stub", drwr.idx, drwr.gen);
         return (DrwrIns *)poola_get(&mng->drwr_pool, (Key){0, 0});
     }
     return (DrwrIns *)poola_get(&mng->drwr_pool, drwr);
 }
 
 DrwrHook *drwr_get_hook(DrwrMng *mng, Key drwr) {
+    assert(mng->arena.buffer);
     if (!poola_alive(&mng->hook_pool, drwr)) {
-        log_err("drwr_get_hook(): drawer %u:%u is dead or invalid => return stub", drwr.idx, drwr.gen);
+        log_err("drwr_get_hook(): drawer %u.%u is dead or invalid => return stub", drwr.idx, drwr.gen);
         return (DrwrHook *)poola_get(&mng->hook_pool, (Key){0, 0});
     }
     return (DrwrHook *)poola_get(&mng->hook_pool, drwr);
 }
 
 void drwr_hook_set_wpos(DrwrMng *mng, Key drwr,
-                        float *pos, float *offset, float *center,
+                        float *pos, float *offs, float *centr,
                         float *rot, int *flip, float *scale) {
     DrwrHook *hook = drwr_get_hook(mng, drwr);
     hook->type = DRWR_HOOK_WPOS;
     hook->wpos_pos = pos;
-    hook->wpos_offset = offset;
-    hook->wpos_center = center;
+    hook->wpos_offs = offs;
+    hook->wpos_centr = centr;
     hook->wpos_rot = rot;
     hook->wpos_flip = flip;
     hook->wpos_scale = scale;
+    log_debug("Hook a drawer %u.%u with [wpos]: pos: %p, offs: %p, centr: %p, rot: %p, flip: %p, scale: %p",
+              drwr.idx, drwr.gen, pos, offs, centr, rot, flip, scale);
 }
 
-void drwr_feed_wpos(DrwrMng *mng, Key drwr,
-                    vec2 pos, vec2 offset, vec2 center,
+void drwr_feed_wpos(DrwrIns *drwr_ins,
+                    vec2 pos, vec2 offs, vec2 centr,
                     vec2 rot, int *flip, vec2 scale) {
-    if (!poola_alive(&mng->drwr_pool, drwr)) {
-        log_err("drwr_feed_wpos(): drawer %u:%u is dead or invalid", drwr.idx, drwr.gen);
-        return;
-    }
-
-    DrwrIns *drwr_ins = (DrwrIns *)poola_get(&mng->drwr_pool, drwr);
-
     vec2 _pos = {0, 0};
-    if (pos) glm_vec2_add(_pos, pos, _pos);
-    if (offset) glm_vec2_add(_pos, offset, _pos);
+    if (likely(pos)) glm_vec2_copy(pos, _pos);
+    if (offs) glm_vec2_add(_pos, offs, _pos);
 
-    SprIns *spr_ins = spr_get(mng->spr_mng, drwr_ins->spr);
-    vec2 _size; glm_vec2_copy(spr_ins->rect[1], _size);
+    vec2 _size; glm_vec2_copy(drwr_ins->srect_size, _size);
     if (scale) glm_vec2_scale(_size, *scale, _size);
 
-    vec2 _center = {0, 0};
-    if (center) {
-        _center[0] = center[0] * _size[0];
-        _center[1] = center[1] * _size[1];
+    vec2 _centr = {0, 0};
+    if (centr) {
+        _centr[0] = centr[0] * _size[0];
+        _centr[1] = centr[1] * _size[1];
     }
 
-    glm_vec2_sub(_pos, _center, drwr_ins->drect[0]);
+    glm_vec2_sub(_pos, _centr, drwr_ins->drect[0]);
     glm_vec2_copy(_size, drwr_ins->drect[1]);
 
+    drwr_ins->flip = flip != NULL ? *flip : SDL_FLIP_NONE;
+    drwr_ins->rot = rot != NULL ? *rot : 0;
+
+    glm_vec2_copy(_centr, drwr_ins->centr);
+}
+
+void drwr_hook_set_swpos(DrwrMng *mng, Key drwr, float *pos, float *rot, float *scale) {
+    DrwrHook *hook = drwr_get_hook(mng, drwr);
+    hook->type = DRWR_HOOK_SWPOS;
+    hook->swpos_pos = pos;
+    hook->swpos_rot = rot;
+    hook->swpos_scale = scale;
+    log_debug("Hook a drawer %u.%u with [swpos]: pos: %p, rot: %p, scale: %p",
+              drwr.idx, drwr.gen, pos, rot, scale);
+}
+
+void drwr_feed_swpos(DrwrIns *drwr_ins, float *pos, float *rot, float *scale) {
+    vec2 _pos = {0, 0};
+    if (likely(pos)) glm_vec2_copy(pos, _pos);
+
+    vec2 _size; glm_vec2_copy(drwr_ins->srect_size, _size);
+    if (scale) glm_vec2_scale(_size, *scale, _size);
+
+    drwr_ins->drect[0][0] = _pos[0] - (_size[0] / 2);
+    drwr_ins->drect[0][1] = _pos[1] - (_size[1] / 2);
+    glm_vec2_copy(_size, drwr_ins->drect[1]);
+
+    drwr_ins->rot = rot != NULL ? *rot : 0;
+
     drwr_ins->flip = SDL_FLIP_NONE;
-    if (flip) drwr_ins->flip = *flip;
-
-    drwr_ins->rot = 0;
-    if (rot) drwr_ins->rot = *rot;
-
-    glm_vec2_copy(_center, drwr_ins->center);
+    drwr_ins->centr[0] = .5;
+    drwr_ins->centr[1] = .5;
 }
 
 float _drwr_hook_wpos_center_mid[2] = { .5, .5 };

@@ -31,7 +31,7 @@ ImgIns *img_get(ImgMng *mng, size_t img);
 
 typedef struct {
     size_t img;
-    mat2 rect;
+    mat2 srect;
 } SprIns;
 
 typedef struct {
@@ -53,7 +53,8 @@ SprIns *spr_get(SprMng *mng, size_t spr);
 
 typedef enum {
     DRWR_HOOK_NONE = 0,
-    DRWR_HOOK_WPOS
+    DRWR_HOOK_WPOS,
+    DRWR_HOOK_SWPOS
 } DrwrHookType;
 
 typedef struct {
@@ -61,22 +62,29 @@ typedef struct {
     union {
         struct {
             float *wpos_pos;
-            float *wpos_offset;
-            float *wpos_center;
+            float *wpos_offs;
+            float *wpos_centr;
             float *wpos_rot;
             int *wpos_flip;
             float *wpos_scale;
+        };
+
+        struct {
+            float *swpos_pos;
+            float *swpos_rot;
+            float *swpos_scale;
         };
     };
 } DrwrHook;
 
 typedef struct {
     size_t spr;
+    vec2 srect_size;
 
     mat2 drect;
     int flip;
     float rot;
-    vec2 center;
+    vec2 centr;
 
     int z;
 
@@ -106,7 +114,11 @@ DrwrIns *drwr_get(DrwrMng *mng, Key drwr);
 DrwrHook *drwr_get_hook(DrwrMng *mng, Key drwr);
 
 static inline void drwr_set_spr(DrwrMng *mng, Key drwr, size_t spr) {
-    drwr_get(mng, drwr)->spr = spr;
+    DrwrIns *drwr_ins = drwr_get(mng, drwr);
+    SprIns *spr_ins = spr_get(mng->spr_mng, spr);
+    drwr_ins->spr = spr;
+    drwr_ins->srect_size[0] = spr_ins->srect[1][0];
+    drwr_ins->srect_size[1] = spr_ins->srect[1][1];
 }
 
 static inline void drwr_set_active(DrwrMng *mng, Key drwr, bool active) {
@@ -122,12 +134,14 @@ static inline void drwr_hook_disable(DrwrMng *mng, Key drwr) {
 }
 
 void drwr_hook_set_wpos(DrwrMng *mng, Key drwr,
-                        float *pos, float *offset, float *center,
+                        float *pos, float *offs, float *centr,
                         float *rot, int *flip, float *scale);
-
-void drwr_feed_wpos(DrwrMng *mng, Key drwr,
-                    vec2 pos, vec2 offset, vec2 center,
+void drwr_feed_wpos(DrwrIns *drwr_ins,
+                    vec2 pos, vec2 offs, vec2 centr,
                     vec2 rot, int *flip, vec2 scale);
+
+void drwr_hook_set_swpos(DrwrMng *mng, Key drwr, float *pos, float *rot, float *scale);
+void drwr_feed_swpos(DrwrIns *drwr_ins, float *pos, float *rot, float *scale);
 
 extern float _drwr_hook_wpos_center_mid[2];
 #define DRWR_HOOK_WPOS_CENTER_MID (_drwr_hook_wpos_center_mid)
