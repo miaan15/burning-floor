@@ -6,6 +6,7 @@
 
 // =============================================================================
 // IMAGE
+
 void img_mng_init(ImgMng *mng, size_t cap) {
     ++cap; // stub
     mng->raw = malloc(cap * sizeof(ImgIns));
@@ -65,6 +66,7 @@ ImgIns *img_get(ImgMng *mng, size_t img) {
 
 // =============================================================================
 // SPRITE
+
 void spr_mng_init(SprMng *mng, size_t cap, ImgMng *img_mng) {
     ++cap; // stub
 
@@ -87,7 +89,7 @@ void spr_mng_destroy(SprMng *mng) {
 size_t spr_new(SprMng *mng, size_t img, mat2 rect) {
     mng->raw[mng->len].img = img;
     glm_mat2_copy(rect, mng->raw[mng->len].rect);
-    log_debug("Made a new sprite %zu: img: %zu, srect: %.1f : %.1f - %.1f x %.1f",
+    log_debug("Made a new sprite %zu: img: %zu, srect: %.0f:%.0f-%.0fx%.0f",
               mng->len, img, rect[0][0], rect[0][1], rect[1][0], rect[1][1]);
     return mng->len++;
 }
@@ -102,13 +104,14 @@ SprIns *spr_get(SprMng *mng, size_t spr) {
 
 // =============================================================================
 // DRAWER
+
 void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *spr_mng, float scale, int pixel_size) {
     ++cap; // stub
 
     size_t arena_size = 0;
-    arena_size += poola_msize(sizeof(DrwrIns), cap);
+    arena_size += pool_msize(sizeof(DrwrIns), cap);
     arena_size = align_up(arena_size, alignof(DrwrHook));
-    arena_size += poola_msize(sizeof(DrwrHook), cap);
+    arena_size += pool_msize(sizeof(DrwrHook), cap);
     arena_init(&mng->arena, arena_size);
 
     poola_init(&mng->drwr_pool, &mng->arena, sizeof(DrwrIns), alignof(DrwrIns), cap);
@@ -123,9 +126,10 @@ void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *spr_mng, float scale, int p
     mng->pixel_size = pixel_size;
 
     // stub
-    size_t drwr_stub = poola_new(&mng->drwr_pool);
+    Key drwr_stub = poola_new(&mng->drwr_pool);
     *(DrwrIns *)poola_get(&mng->drwr_pool, drwr_stub) = (DrwrIns){0}; // FIXME
-    size_t hook_stub = poola_new(&mng->hook_pool);
+
+    Key hook_stub = poola_new(&mng->hook_pool);
     *(DrwrHook *)poola_get(&mng->hook_pool, hook_stub) = (DrwrHook){0}; // FIXME
 }
 
@@ -196,55 +200,70 @@ void drwr_mng_draw(DrwrMng *mng, SDL_Renderer *renderer, SDL_Window *window) {
     }
 }
 
-size_t drwr_new(DrwrMng *mng, size_t spr, size_t z) {
-    size_t drwr = poola_new(&mng->drwr_pool);
-    size_t hook = poola_new(&mng->hook_pool);
-    assert(drwr == hook);
-    if (drwr < 0) {
+Key drwr_new(DrwrMng *mng, size_t spr, int z) {
+    Key drwr = poola_new(&mng->drwr_pool);
+    Key hook = poola_new(&mng->hook_pool);
+
+    assert(drwr.idx == hook.idx && drwr.gen == hook.gen);
+
+    if (key2u64(drwr) == 0) {
         log_err("drwr_new(): cannot create new drawer => return stub");
-        return 0;
+        return (Key){0, 0};
     }
+
     DrwrIns *drwr_ins = (DrwrIns *)poola_get(&mng->drwr_pool, drwr);
     drwr_ins->spr = spr;
     drwr_ins->z = z;
     drwr_ins->active = true;
-    // DrwrHook *hook_ins = (DrwrHook *)poola_get(&mng->hook_pool, hook);
 
-    log_debug("Made a new drawer %zu: sprite: %zu, z: %d", drwr, spr, z);
+    log_debug("Made a new drawer %u:%u: sprite: %zu, z: %zu", drwr.idx, drwr.gen, spr, z);
 
     return drwr;
 }
 
-void drwr_remv(DrwrMng *mng, size_t drwr) {
+void drwr_remv(DrwrMng *mng, Key drwr) {
     if (!poola_alive(&mng->drwr_pool, drwr)) {
-        log_err("drwr_remv(): drawer %zu is dead or invalid", drwr);
+        log_err("drwr_remv(): drawer %u:%u is dead or invalid", drwr.idx, drwr.gen);
         return;
     }
     poola_remv(&mng->drwr_pool, drwr);
     poola_remv(&mng->hook_pool, drwr);
 }
 
-DrwrIns *drwr_get(DrwrMng *mng, size_t drwr) {
+DrwrIns *drwr_get(DrwrMng *mng, Key drwr) {
     if (!poola_alive(&mng->drwr_pool, drwr)) {
-        log_err("drwr_get(): drawer %zu is dead or invalid => return stub", drwr);
-        return (DrwrIns *)poola_get(&mng->drwr_pool, 0);
+        log_err("drwr_get(): drawer %u:%u is dead or invalid => return stub", drwr.idx, drwr.gen);
+        return (DrwrIns *)poola_get(&mng->drwr_pool, (Key){0, 0});
     }
     return (DrwrIns *)poola_get(&mng->drwr_pool, drwr);
 }
 
-DrwrHook *drwr_get_hook(DrwrMng *mng, size_t drwr) {
+DrwrHook *drwr_get_hook(DrwrMng *mng, Key drwr) {
     if (!poola_alive(&mng->hook_pool, drwr)) {
-        log_err("drwr_get_hook(): drawer %zu is dead or invalid => return stub", drwr);
-        return (DrwrHook *)poola_get(&mng->hook_pool, 0);
+        log_err("drwr_get_hook(): drawer %u:%u is dead or invalid => return stub", drwr.idx, drwr.gen);
+        return (DrwrHook *)poola_get(&mng->hook_pool, (Key){0, 0});
     }
     return (DrwrHook *)poola_get(&mng->hook_pool, drwr);
 }
 
-void drwr_feed_wpos(DrwrMng *mng, size_t drwr,
+void drwr_hook_set_wpos(DrwrMng *mng, Key drwr,
+                        float *pos, float *offset, float *center,
+                        float *rot, int *flip, float *scale) {
+    DrwrHook *hook = drwr_get_hook(mng, drwr);
+    hook->type = DRWR_HOOK_WPOS;
+    hook->wpos_pos = pos;
+    hook->wpos_offset = offset;
+    hook->wpos_center = center;
+    hook->wpos_rot = rot;
+    hook->wpos_flip = flip;
+    hook->wpos_scale = scale;
+}
+
+void drwr_feed_wpos(DrwrMng *mng, Key drwr,
                     vec2 pos, vec2 offset, vec2 center,
                     vec2 rot, int *flip, vec2 scale) {
     if (!poola_alive(&mng->drwr_pool, drwr)) {
-        log_err("drwr_feed_wpos(): drawer %zu is dead or invalid", drwr);
+        log_err("drwr_feed_wpos(): drawer %u:%u is dead or invalid", drwr.idx, drwr.gen);
         return;
     }
 
@@ -256,7 +275,7 @@ void drwr_feed_wpos(DrwrMng *mng, size_t drwr,
 
     SprIns *spr_ins = spr_get(mng->spr_mng, drwr_ins->spr);
     vec2 _size; glm_vec2_copy(spr_ins->rect[1], _size);
-    if (scale) glm_vec2_scale(_size, *scale ,_size);
+    if (scale) glm_vec2_scale(_size, *scale, _size);
 
     vec2 _center = {0, 0};
     if (center) {

@@ -126,7 +126,7 @@ void player_init() {
 }
 
 void player_destroy() {
-    if (player.drwr) drwr_remv(&drwr_mng, player.drwr);
+    if (key2u64(player.drwr)) drwr_remv(&drwr_mng, player.drwr);
     arena_destroy(&player.arena);
 }
 

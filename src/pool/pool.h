@@ -1,9 +1,30 @@
 #pragma once
 
 #include "alloc/arena.h"
+#include "common.h"
 #include <assert.h>
 #include <stdalign.h>
 #include <stdbool.h>
+#include <stdint.h>
+
+#define _POOL_ALIVE_VAL ((uint32_t)-1)
+
+typedef struct {
+    uint32_t next;
+    uint32_t gen;
+} PoolMeta;
+
+static inline size_t pool_msize(size_t esize, size_t cap) {
+    size_t size = 0;
+    size += cap * esize;
+    size = align_up(size, alignof(PoolMeta));
+    size += cap * sizeof(PoolMeta);
+    return size;
+}
+static inline size_t pool_malign(size_t ealign) {
+    size_t metaalign = alignof(PoolMeta);
+    return ealign > metaalign ? ealign : metaalign;
+}
 
 typedef struct {
     size_t esize;
@@ -15,7 +36,7 @@ typedef struct {
     size_t cnt;
 
     size_t head;
-    size_t *next;
+    PoolMeta *meta;
 } Pool;
 
 void pool_init(Pool *pool, size_t esize, size_t ealign, size_t cap);
@@ -24,47 +45,37 @@ static inline Pool pool_make(size_t esize, size_t ealign, size_t cap) {
 }
 void pool_destroy(Pool *pool);
 
-size_t pool_new(Pool *pool);
-bool pool_remv(Pool *pool, size_t obj);
+Key pool_new(Pool *pool);
+bool pool_remv(Pool *pool, Key key);
 void pool_reset(Pool *pool);
-bool pool_alive(Pool *pool, size_t obj);
-void *pool_get(Pool *pool, size_t obj);
+bool pool_alive(Pool *pool, Key key);
+void *pool_get(Pool *pool, Key key);
 
-static inline size_t pool_msize(size_t esize, size_t cap) {
-    size_t size = 0;
-    size += cap * esize;
-    size = align_up(size, alignof(size_t));
-    size += cap * sizeof(size_t);
-    return size;
-}
-static inline size_t pool_malign(size_t ealign) {
-    size_t salign = alignof(size_t);
-    return ealign > salign ? ealign : salign;
-}
-
-#define pool_for(pool_ptr, idx, ptr) \
-    for (size_t idx = 0; idx < (pool_ptr)->offset; ++idx) \
-        if ((pool_ptr)->next[idx] == (size_t)-1) \
-            for (void *ptr = (char *)(pool_ptr)->raw + (idx * (pool_ptr)->esize) \
-                , *__d = NULL; !__d; __d = (void *)1)
+#define pool_for(pool_ptr, key_var, ptr_var) \
+    for (uint32_t _i = 0; _i < (pool_ptr)->offset; ++_i) \
+        if ((pool_ptr)->meta[_i].next == _POOL_ALIVE_VAL) \
+            for (Key key_var = { _i, (pool_ptr)->meta[_i].gen }, *__k = &key_var; __k; __k = NULL) \
+                for (void *ptr_var = (char *)(pool_ptr)->raw + (_i * (pool_ptr)->esize), *__p = ptr_var; __p; __p = NULL)
 
 typedef struct {
     Pool *pool;
-    size_t idx;
+    uint32_t _idx;
+    Key key;
     void *data;
 } PoolIt;
 
 static inline PoolIt pool_iter(Pool *pool) {
-    return (PoolIt){ pool, (size_t)-1, NULL };
+    return (PoolIt){ pool, (uint32_t)-1, {0, 0}, NULL };
 }
 
 static inline bool pool_next(PoolIt *it) {
     Pool *pool = it->pool;
     assert(pool && pool->raw);
 
-    while (++it->idx < pool->offset) {
-        if (pool->next[it->idx] == (size_t)-1) {
-            it->data = (char *)pool->raw + (it->idx * pool->esize);
+    while (++it->_idx < pool->offset) {
+        if (pool->meta[it->_idx].next == _POOL_ALIVE_VAL) {
+            it->key = (Key){ it->_idx, pool->meta[it->_idx].gen };
+            it->data = (char *)pool->raw + (it->_idx * pool->esize);
             return true;
         }
     }
@@ -74,8 +85,14 @@ static inline bool pool_next(PoolIt *it) {
 }
 
 // =============================================================================
+
 typedef struct {
-    Arena *arena;
+    uint32_t next;
+    uint32_t gen;
+} PoolAMeta;
+
+typedef struct {
+    Arena *arena_ref;
 
     size_t esize;
     size_t ealign;
@@ -86,56 +103,45 @@ typedef struct {
     size_t cnt;
 
     size_t head;
-    size_t *next;
+    PoolAMeta *meta;
 } PoolA;
 
-void poola_init(PoolA *pool, Arena *arena, size_t esize, size_t ealign, size_t cap);
-static inline PoolA poola_make(Arena *arena, size_t esize, size_t ealign, size_t cap) {
-    PoolA p; poola_init(&p, arena, esize, ealign, cap); return p;
+void poola_init(PoolA *pool, Arena *arena_ref, size_t esize, size_t ealign, size_t cap);
+static inline PoolA poola_make(size_t esize, Arena *arena_ref, size_t ealign, size_t cap) {
+    PoolA p; poola_init(&p, arena_ref, esize, ealign, cap); return p;
 }
-void poola_destroy(PoolA *pool);
 
-size_t poola_new(PoolA *pool);
-bool poola_remv(PoolA *pool, size_t obj);
+Key poola_new(PoolA *pool);
+bool poola_remv(PoolA *pool, Key key);
 void poola_reset(PoolA *pool);
-bool poola_alive(PoolA *pool, size_t obj);
-void *poola_get(PoolA *pool, size_t obj);
+bool poola_alive(PoolA *pool, Key key);
+void *poola_get(PoolA *pool, Key key);
 
-static inline size_t poola_msize(size_t esize, size_t cap) {
-    size_t size = 0;
-    size += cap * esize;
-    size = align_up(size, alignof(size_t));
-    size += cap * sizeof(size_t);
-    return size;
-}
-static inline size_t poola_malign(size_t ealign) {
-    size_t salign = alignof(size_t);
-    return ealign > salign ? ealign : salign;
-}
-
-#define poola_for(poola_ptr, idx, ptr) \
-    for (size_t idx = 0; idx < (poola_ptr)->offset; ++idx) \
-        if ((poola_ptr)->next[idx] == (size_t)-1) \
-            for (void *ptr = (char *)(poola_ptr)->raw + (idx * (poola_ptr)->esize) \
-                , *__d = NULL; !__d; __d = (void *)1)
+#define poola_for(poola_ptr, key_var, ptr_var) \
+    for (uint32_t _i = 0; _i < (poola_ptr)->offset; ++_i) \
+        if ((poola_ptr)->meta[_i].next == _POOL_ALIVE_VAL) \
+            for (Key key_var = { _i, (poola_ptr)->meta[_i].gen }, *__k = &key_var; __k; __k = NULL) \
+                for (void *ptr_var = (char *)(poola_ptr)->raw + (_i * (poola_ptr)->esize), *__p = ptr_var; __p; __p = NULL)
 
 typedef struct {
     PoolA *pool;
-    size_t idx;
+    uint32_t _idx;
+    Key key;
     void *data;
 } PoolAIt;
 
 static inline PoolAIt poola_iter(PoolA *pool) {
-    return (PoolAIt){ pool, (size_t)-1, NULL };
+    return (PoolAIt){ pool, (uint32_t)-1, {0, 0}, NULL };
 }
 
 static inline bool poola_next(PoolAIt *it) {
     PoolA *pool = it->pool;
     assert(pool && pool->raw);
 
-    while (++it->idx < pool->offset) {
-        if (pool->next[it->idx] == (size_t)-1) {
-            it->data = (char *)pool->raw + (it->idx * pool->esize);
+    while (++it->_idx < pool->offset) {
+        if (pool->meta[it->_idx].next == _POOL_ALIVE_VAL) {
+            it->key = (Key){ it->_idx, pool->meta[it->_idx].gen };
+            it->data = (char *)pool->raw + (it->_idx * pool->esize);
             return true;
         }
     }

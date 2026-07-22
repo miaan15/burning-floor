@@ -2,6 +2,7 @@
 
 #include "alloc/arena.h"
 #include "cglm/types.h"
+#include "common.h"
 #include "time/time.h"
 #include <stddef.h>
 
@@ -45,7 +46,8 @@ typedef struct {
     vec2 atk_dir_inp;
     bool atk_button_inp;
 
-    size_t drwr;
+    Key ett;
+    Key drwr;
 
     Arena arena;
 

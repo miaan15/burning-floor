@@ -1,6 +1,7 @@
 #pragma once
 
 #include "alloc/arena.h"
+#include "common.h"
 #include "pool/pool.h"
 #include <box2d/collision.h>
 #include <cglm/types.h>
@@ -22,6 +23,6 @@ extern EttMng ett_mng;
 void ett_mng_init(EttMng *mng, size_t ett_cap);
 void ett_mng_destroy(EttMng *mng);
 
-size_t ett_new(EttMng *mng, vec2 pos, mat2 aabb);
-void ett_remv(EttMng *mng, size_t ett);
-EttIns *ett_get(EttMng *mng, size_t ett);
+Key ett_new(EttMng *mng, vec2 pos, mat2 aabb);
+void ett_remv(EttMng *mng, Key ett);
+EttIns *ett_get(EttMng *mng, Key ett);
