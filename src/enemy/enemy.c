@@ -3,6 +3,7 @@
 #include "ett/ett.h"
 #include "global.h"
 #include "log/log.h"
+#include "macro.h"
 
 EnemyMng enemy_mng = {0};
 
@@ -45,6 +46,16 @@ void enemy_mng_destroy(EnemyMng *mng) {
     arena_destroy(&mng->arena);
 }
 
+void enemy_mng_update(EnemyMng *mng) {
+    poola_for(&mng->enemy_pool, enemy, ptr) {
+        EnemyIns *enemy_ins = (EnemyIns *)ptr;
+        switch (enemy_ins->type) {
+        case ENEMY_SLIME: enemy_slime_update(mng, enemy); break;
+        default: break;
+        }
+    }
+}
+
 Key enemy_new(EnemyMng *mng) {
     assert(mng->arena.buffer);
     Key enemy = poola_new(&mng->enemy_pool);
@@ -61,22 +72,18 @@ Key enemy_new(EnemyMng *mng) {
 
 void enemy_remv(EnemyMng *mng, Key enemy) {
     assert(mng->arena.buffer);
-    if (!poola_alive(&mng->enemy_pool, enemy)) {
+    if (unlikely(!poola_alive(&mng->enemy_pool, enemy))) {
         log_err("enemy_remv(): enemy %u.%u is dead or invalid", enemy.idx, enemy.gen);
         return;
     }
     poola_remv(&mng->enemy_pool, enemy);
 }
 
-void enemy_init_as_slime(EnemyIns* enemy_ins, vec2 pos) {
-    enemy_ins->type = ENEMY_SLIME;
-    // enemy_ins->slime =
-    EttIns *ett_ins = ett_get(&ett_mng, enemy_ins->ett);
-    glm_vec2_copy(pos, ett_ins->pos);
-    glm_vec2_copy(VEC2_HALF, ett_ins->rect_centr);
-    // glm_vec2_copy(VEC2_ONE, ett_ins->rect_size);
-
-    DrwrIns *drwr_ins = drwr_get(&drwr_mng, enemy_ins->drwr);
-    drwr_set_spr(&drwr_mng, enemy_ins->drwr, enemy_mng.spr_slime[0]);
-    drwr_hook_set_swpos(&drwr_mng, enemy_ins->drwr, ett_ins->pos, NULL, NULL);
+EnemyIns *enemy_get(EnemyMng *mng, Key enemy) {
+    assert(mng->arena.buffer);
+    if (unlikely(!poola_alive(&mng->enemy_pool, enemy))) {
+        log_err("enemy_remv(): enemy %u.%u is dead or invalid => return stub", enemy.idx, enemy.gen);
+        return poola_get(&mng->enemy_pool, (Key){0, 0});
+    }
+    return poola_get(&mng->enemy_pool, enemy);
 }

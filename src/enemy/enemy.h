@@ -6,6 +6,15 @@
 #include "pool/pool.h"
 
 typedef struct {
+    float jump_vel;
+    float jump_delay;
+    float jump_dur;
+
+    float cd;
+    float cd_vari;
+} EnemySlimeDef;
+
+typedef struct {
 
 } EnemySlime;
 
@@ -41,8 +50,12 @@ extern EnemyMng enemy_mng;
 
 void enemy_mng_init(EnemyMng *mng, size_t cap);
 void enemy_mng_destroy(EnemyMng *mng);
+void enemy_mng_update(EnemyMng *mng);
 
 Key enemy_new(EnemyMng *mng);
 void enemy_remv(EnemyMng *mng, Key enemy);
 
-void enemy_init_as_slime(EnemyIns* enemy_ins, vec2 pos);
+EnemyIns *enemy_get(EnemyMng *mng, Key enemy);
+
+void enemy_slime_init(EnemyMng *mng, Key enemy, vec2 pos);
+void enemy_slime_update(EnemyMng *mng, Key enemy);

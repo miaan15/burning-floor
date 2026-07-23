@@ -28,20 +28,20 @@ void img_mng_destroy(ImgMng *mng) {
 size_t img_new(ImgMng *mng, const char *path,
                SDL_Renderer *renderer, SDL_ScaleMode scalemode) {
     assert(mng->raw);
-    if (mng->len >= mng->cap) {
+    if (unlikely(mng->len >= mng->cap)) {
         log_err("img_new(): full texture capacity => return stub");
         return 0;
     }
 
     SDL_Surface *surf = SDL_LoadPNG(path);
-    if (!surf) {
+    if (unlikely(!surf)) {
         log_err("img_new(): try load surface from %s but %s => return stub",
                 path, SDL_GetError());
         return 0;
     }
     SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
     SDL_SetTextureScaleMode(tex, scalemode);
-    if (!tex) {
+    if (unlikely(!tex)) {
         log_err("img_new(): try load texture from %s but %s => return stub",
                 path, SDL_GetError());
         SDL_DestroySurface(surf);
@@ -60,7 +60,7 @@ size_t img_new(ImgMng *mng, const char *path,
 
 ImgIns *img_get(ImgMng *mng, size_t img) {
     assert(mng->raw);
-    if (img >= mng->len) {
+    if (unlikely(img >= mng->len)) {
         log_err("img_get(): image %zu is dead or invalid => return stub", img);
         return mng->raw;
     }
@@ -100,7 +100,7 @@ size_t spr_new(SprMng *mng, size_t img, mat2 rect) {
 
 SprIns *spr_get(SprMng *mng, size_t spr) {
     assert(mng->raw);
-    if (spr >= mng->len) {
+    if (unlikely(spr >= mng->len)) {
         log_err("spr_get(): sprite %zu is dead or invalid => return stub", spr);
         return mng->raw;
     }
@@ -151,17 +151,17 @@ void drwr_mng_update(DrwrMng *mng) {
         DrwrHook *hook_ins = (DrwrHook *)poola_get(&mng->hook_pool, drwr);
 
         switch (hook_ins->type) {
-        case DRWR_HOOK_WPOS: {
+        case DRWR_HOOK_WPOS:
             drwr_feed_wpos(drwr_ins,
                            hook_ins->wpos_pos, hook_ins->wpos_offs,
                            hook_ins->wpos_centr, hook_ins->wpos_rot,
                            hook_ins->wpos_flip, hook_ins->wpos_scale);
-        } break;
+        break;
 
-        case DRWR_HOOK_SWPOS: {
+        case DRWR_HOOK_SWPOS:
             drwr_feed_swpos(drwr_ins,
                             hook_ins->swpos_pos, hook_ins->swpos_rot,hook_ins->swpos_scale);
-        } break;
+        break;
 
         case DRWR_HOOK_NONE: break;
         default: break;
@@ -219,7 +219,7 @@ Key drwr_new(DrwrMng *mng, size_t spr, int z) {
 
     assert(drwr.idx == hook.idx && drwr.gen == hook.gen);
 
-    if (key2u64(drwr) == 0) {
+    if (unlikely(key2u64(drwr) == 0)) {
         log_err("drwr_new(): cannot create new drawer => return stub");
         return (Key){0, 0};
     }
@@ -239,7 +239,7 @@ Key drwr_new(DrwrMng *mng, size_t spr, int z) {
 
 void drwr_remv(DrwrMng *mng, Key drwr) {
     assert(mng->arena.buffer);
-    if (!poola_alive(&mng->drwr_pool, drwr)) {
+    if (unlikely(!poola_alive(&mng->drwr_pool, drwr))) {
         log_err("drwr_remv(): drawer %u.%u is dead or invalid", drwr.idx, drwr.gen);
         return;
     }
@@ -249,7 +249,7 @@ void drwr_remv(DrwrMng *mng, Key drwr) {
 
 DrwrIns *drwr_get(DrwrMng *mng, Key drwr) {
     assert(mng->arena.buffer);
-    if (!poola_alive(&mng->drwr_pool, drwr)) {
+    if (unlikely(!poola_alive(&mng->drwr_pool, drwr))) {
         log_err("drwr_get(): drawer %u.%u is dead or invalid => return stub", drwr.idx, drwr.gen);
         return (DrwrIns *)poola_get(&mng->drwr_pool, (Key){0, 0});
     }
@@ -258,7 +258,7 @@ DrwrIns *drwr_get(DrwrMng *mng, Key drwr) {
 
 DrwrHook *drwr_get_hook(DrwrMng *mng, Key drwr) {
     assert(mng->arena.buffer);
-    if (!poola_alive(&mng->hook_pool, drwr)) {
+    if (unlikely(!poola_alive(&mng->hook_pool, drwr))) {
         log_err("drwr_get_hook(): drawer %u.%u is dead or invalid => return stub", drwr.idx, drwr.gen);
         return (DrwrHook *)poola_get(&mng->hook_pool, (Key){0, 0});
     }

@@ -103,7 +103,8 @@ int main() {
 
     Key _e = enemy_new(&enemy_mng);
     vec2 _ep = {100, 100};
-    enemy_init_as_slime(poola_get(&enemy_mng.enemy_pool, _e), _ep);
+    enemy_slime_init(&enemy_mng, _e, _ep);
+    enemy_get(&enemy_mng, _e)->target = player.ett;
 
     bool running = 1;
     uint64_t last_time_ns = SDL_GetTicksNS();
@@ -146,6 +147,8 @@ int main() {
 }
 
 void logic_update() {
+    enemy_mng_update(&enemy_mng);
+
     player_logic_update();
 }
 

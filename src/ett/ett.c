@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <cglm/cglm.h>
+#include "macro.h"
 
 void ett_mng_init(EttMng *mng, size_t etts_cap) {
     ++etts_cap; // for stub
@@ -42,7 +43,7 @@ Key ett_new(EttMng *mng, vec2 pos,
 
     b2DynamicTree_CreateProxy(&mng->aabb_tree, aabb, cat_bits, key2u64(ett));
 
-    log_debug("Created a new entity %u.%u: pos: %.1f %.1f, aabb: %.1f:%.1f-%.1fx%.1f",
+    log_debug("Made a new entity %u.%u: pos: %.1f %.1f, aabb: %.1f:%.1f-%.1fx%.1f",
               ett.idx, ett.gen, pos[0], pos[1],
               aabb.lowerBound.x, aabb.lowerBound.y, aabb.upperBound.x, aabb.upperBound.y);
 
@@ -51,7 +52,7 @@ Key ett_new(EttMng *mng, vec2 pos,
 
 void ett_remv(EttMng *mng, Key ett) {
     assert(mng->arena.buffer);
-    if (!poola_alive(&mng->ett_pool, ett)) {
+    if (unlikely(!poola_alive(&mng->ett_pool, ett))) {
         log_err("ett_remv(): entity %u.%u is dead or invalid", ett.idx, ett.gen);
         return;
     }
@@ -64,7 +65,7 @@ void ett_remv(EttMng *mng, Key ett) {
 
 EttIns *ett_get(EttMng *mng, Key ett) {
     assert(mng->arena.buffer);
-    if (!poola_alive(&mng->ett_pool, ett)) {
+    if (unlikely(!poola_alive(&mng->ett_pool, ett))) {
         log_err("ett_get(): entity %u.%u is dead or invalid => return stub", ett.idx, ett.gen);
         return (EttIns *)poola_get(&mng->ett_pool, (Key){0, 0});
     }
