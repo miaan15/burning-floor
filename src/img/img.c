@@ -139,6 +139,8 @@ void drwr_mng_init(DrwrMng *mng, size_t cap, SprMng *spr_mng, float scale, int p
 }
 
 void drwr_mng_destroy(DrwrMng *mng) {
+    poola_destroy(&mng->drwr_pool);
+    poola_destroy(&mng->hook_pool);
     arena_destroy(&mng->arena);
 }
 
@@ -331,6 +333,5 @@ void drwr_feed_swpos(DrwrIns *drwr_ins, float *pos, float *rot, float *scale) {
     drwr_ins->centr[1] = .5;
 }
 
-float _drwr_hook_wpos_center_mid[2] = { .5, .5 };
 int _drwr_hook_wpos_flip_horizontal = SDL_FLIP_HORIZONTAL;
 int _drwr_hook_wpos_flip_vertical = SDL_FLIP_VERTICAL;

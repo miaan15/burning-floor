@@ -1,6 +1,7 @@
 #include "pool.h"
 #include <assert.h>
 #include "log/log.h"
+#include "macro.h"
 
 void pool_init(Pool *pool, size_t esize, size_t ealign, size_t cap) {
     pool->esize = esize;
@@ -12,6 +13,8 @@ void pool_init(Pool *pool, size_t esize, size_t ealign, size_t cap) {
     pool->meta = (PoolMeta *)((char *)pool->raw + align_up(cap * esize, alignof(PoolMeta)));
 
     pool->offset = pool->cnt = pool->head = 0;
+
+    memset(pool->raw, 0, size);
 }
 
 void pool_destroy(Pool *pool) {
@@ -23,7 +26,7 @@ void pool_destroy(Pool *pool) {
 
 Key pool_new(Pool *pool) {
     assert(pool->raw);
-    if (pool->cnt >= pool->cap) {
+    if (unlikely(pool->cnt >= pool->cap)) {
         log_err("pool_new(): full capacity (which is %u) => return stub", pool->cap);
         return (Key){0, 0};
     }
@@ -46,7 +49,7 @@ Key pool_new(Pool *pool) {
 
 bool pool_remv(Pool *pool, Key key) {
     assert(pool->raw);
-    if (!pool_alive(pool, key)) {
+    if (unlikely(!pool_alive(pool, key))) {
         log_err("pool_remv(): key %u.%u does not exist (removed, out of bounds, or stale)", key.idx, key.gen);
         return false;
     }
@@ -77,7 +80,7 @@ bool pool_alive(Pool *pool, Key key) {
 
 void *pool_get(Pool *pool, Key key) {
     assert(pool->raw);
-    if (!pool_alive(pool, key)) {
+    if (unlikely(!pool_alive(pool, key))) {
         log_err("pool_get(): key %u.%u does not exist => return stub", key.idx, key.gen);
         return pool->raw;
     }
@@ -100,9 +103,16 @@ void poola_init(PoolA *pool, Arena *arena_ref, size_t esize, size_t ealign, size
     pool->offset = pool->cnt = pool->head = 0;
 }
 
+void poola_destroy(PoolA *pool) {
+    pool->arena_ref = NULL;
+    pool->raw = NULL;
+    pool->meta = NULL;
+    pool->esize = pool->cap = pool->offset = pool->cnt = pool->head = 0;
+}
+
 Key poola_new(PoolA *pool) {
     assert(pool->raw);
-    if (pool->cnt >= pool->cap) {
+    if (unlikely(pool->cnt >= pool->cap)) {
         log_err("poola_new(): full capacity (which is %u) => return stub", pool->cap);
         return (Key){0, 0};
     }
@@ -125,7 +135,7 @@ Key poola_new(PoolA *pool) {
 
 bool poola_remv(PoolA *pool, Key key) {
     assert(pool->raw);
-    if (!poola_alive(pool, key)) {
+    if (unlikely(!poola_alive(pool, key))) {
         log_err("poola_remv(): key %u.%u does not exist (removed, out of bounds, or stale)", key.idx, key.gen);
         return false;
     }
@@ -156,7 +166,7 @@ bool poola_alive(PoolA *pool, Key key) {
 
 void *poola_get(PoolA *pool, Key key) {
     assert(pool->raw);
-    if (!poola_alive(pool, key)) {
+    if (unlikely(!poola_alive(pool, key))) {
         log_err("poola_get(): key %u.%u does not exist => return stub", key.idx, key.gen);
         return pool->raw;
     }

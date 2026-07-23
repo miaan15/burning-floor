@@ -51,14 +51,14 @@ SprIns *spr_get(SprMng *mng, size_t spr);
 // =============================================================================
 // DRAWER
 
-typedef enum {
+enum DrwrHookType {
     DRWR_HOOK_NONE = 0,
     DRWR_HOOK_WPOS,
     DRWR_HOOK_SWPOS
-} DrwrHookType;
+};
 
 typedef struct {
-    DrwrHookType type;
+    int type;
     union {
         struct {
             float *wpos_pos;
@@ -143,8 +143,6 @@ void drwr_feed_wpos(DrwrIns *drwr_ins,
 void drwr_hook_set_swpos(DrwrMng *mng, Key drwr, float *pos, float *rot, float *scale);
 void drwr_feed_swpos(DrwrIns *drwr_ins, float *pos, float *rot, float *scale);
 
-extern float _drwr_hook_wpos_center_mid[2];
-#define DRWR_HOOK_WPOS_CENTER_MID (_drwr_hook_wpos_center_mid)
 extern int _drwr_hook_wpos_flip_horizontal;
 #define DRWR_HOOK_WPOS_FLIP_HORIZONTAL (&_drwr_hook_wpos_flip_horizontal)
 extern int _drwr_hook_wpos_flip_vertical;

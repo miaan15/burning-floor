@@ -22,6 +22,7 @@ void ett_mng_init(EttMng *mng, size_t etts_cap) {
 
 void ett_mng_destroy(EttMng *mng) {
     b2DynamicTree_Destroy(&mng->aabb_tree);
+    poola_destroy(&mng->ett_pool);
     arena_destroy(&mng->arena);
 }
 

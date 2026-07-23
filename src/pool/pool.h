@@ -110,6 +110,7 @@ void poola_init(PoolA *pool, Arena *arena_ref, size_t esize, size_t ealign, size
 static inline PoolA poola_make(size_t esize, Arena *arena_ref, size_t ealign, size_t cap) {
     PoolA p; poola_init(&p, arena_ref, esize, ealign, cap); return p;
 }
+void poola_destroy(PoolA *pool);
 
 Key poola_new(PoolA *pool);
 bool poola_remv(PoolA *pool, Key key);

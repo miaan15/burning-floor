@@ -32,12 +32,12 @@ typedef struct {
     union {
         EnemyMeleeData melee_data;
     };
-} EnemyData;
+} EnemyIns;
 
 typedef struct {
     Arena arena;
 
-    EnemyData *enemies;
+    EnemyIns *enemies;
     size_t enemies_offset;
     size_t enemies_count;
     size_t enemies_cap;

@@ -2,10 +2,15 @@
 #include <float.h>
 
 #include "common.h"
+#include "enemy/enemy.h"
 #include "player/player.h"
 #include "global.h"
 #include "log/log.h"
 #include "input/input.h"
+
+vec2 _vec2_zero = {0, 0};
+vec2 _vec2_one = {1, 1};
+vec2 _vec2_half = {.5, .5};
 
 int window_width = 1280;
 int window_height = 720;
@@ -91,7 +96,14 @@ int main() {
     spr_mng_init(&spr_mng, SPRITE_CAP, &img_mng);
     drwr_mng_init(&drwr_mng, DRAWER_CAP, &spr_mng, 4, 1);
 
+    const size_t ENEMY_CAP = 1024;
+    enemy_mng_init(&enemy_mng, ENEMY_CAP);
+
     player_init();
+
+    Key _e = enemy_new(&enemy_mng);
+    vec2 _ep = {100, 100};
+    enemy_init_as_slime(poola_get(&enemy_mng.enemy_pool, _e), _ep);
 
     bool running = 1;
     uint64_t last_time_ns = SDL_GetTicksNS();
