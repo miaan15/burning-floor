@@ -89,7 +89,7 @@ void player_init() {
         timelinea_add(&player.ani_run_tl, spn_get_float(&cfgm_pl, i));
         log_debug("player ani_run timeline: stamp %zu at %.2f", i, player.ani_run_tl.stamps[i]);
     }
-    timelinea_start(&player.ani_run_tl);
+    timelinea_play(&player.ani_run_tl);
 
     timelinea_init(&player.ani_atk_tl, &player.arena, &cur_frame_time, 4, false);
     spn_move_sibling(&cfgm_pl, "atk");
@@ -97,7 +97,7 @@ void player_init() {
         timelinea_add(&player.ani_atk_tl, spn_get_float(&cfgm_pl, i));
         log_debug("player ani_atk timeline: stamp %zu at %.2f", i, player.ani_atk_tl.stamps[i]);
     }
-    timelinea_start(&player.ani_atk_tl);
+    timelinea_play(&player.ani_atk_tl);
 
     timelinea_init(&player.ani_roll_tl, &player.arena, &cur_frame_time, 4, false);
     spn_move_sibling(&cfgm_pl, "roll");
@@ -105,7 +105,7 @@ void player_init() {
         timelinea_add(&player.ani_roll_tl, spn_get_float(&cfgm_pl, i));
         log_debug("player ani_roll timeline: stamp %zu at %.2f", i, player.ani_roll_tl.stamps[i]);
     }
-    timelinea_start(&player.ani_roll_tl);
+    timelinea_play(&player.ani_roll_tl);
 
     // Params
     cfgm_pl = spn_find(spn_root(&cfg_context), "game/player");

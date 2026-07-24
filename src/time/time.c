@@ -1,5 +1,6 @@
 #include "time.h"
 #include "log/log.h"
+#include "macro.h"
 #include <assert.h>
 #include <math.h>
 #include <stdalign.h>
@@ -9,7 +10,7 @@
 void _timeline_update(Timeline *tl) {
     if (!tl->running) return;
 
-    float time = *tl->time_ref - tl->started_time;
+    float time = *tl->time_hook - tl->started_time;
     if (!tl->loop) {
         for (size_t i = tl->cur_stamp; i < tl->len; ++i) {
             if (time <= tl->stamps[i]) {
@@ -37,7 +38,7 @@ void _timeline_update(Timeline *tl) {
 }
 
 void timeline_init(Timeline *tl, float *time, size_t cap, bool loop) {
-    tl->time_ref = time;
+    tl->time_hook = time;
     tl->stamps = (float *)malloc(cap * sizeof(float));
     tl->cap = cap;
     tl->len = 0;
@@ -51,7 +52,7 @@ void timeline_init(Timeline *tl, float *time, size_t cap, bool loop) {
 
 void timeline_destroy(Timeline *tl) {
     free(tl->stamps);
-    tl->time_ref = NULL;
+    tl->time_hook = NULL;
     tl->stamps = NULL;
     tl->cap = tl->len = 0;
     tl->running = tl->loop = false;
@@ -68,6 +69,7 @@ size_t timeline_add(Timeline *tl, float delta) {
         log_err("timeline_add(): delta should be > 0 (which was %f) => return 0", delta);
         return 0;
     }
+
     tl->stamps[tl->len] = tl->len == 0 ? delta
                                        : tl->stamps[tl->len - 1] + delta;
     return tl->len++;
@@ -82,6 +84,7 @@ size_t timeline_insert(Timeline *tl, float time) {
         log_err("timeline_insert(): time should be > 0 (which was %f) => return 0", time);
         return 0;
     }
+
     for (size_t i = 0; i <= tl->len; ++i) {
         if (tl->stamps[i] > time || i == tl->len) {
             for (size_t j = tl->len + 1; j-- > i + 1;) {
@@ -89,24 +92,27 @@ size_t timeline_insert(Timeline *tl, float time) {
             }
             tl->stamps[i] = time;
 
+            ++tl->len;
             return i;
         }
     }
     assert(false);
 }
 
-void timeline_start(Timeline *tl) {
+void timeline_play(Timeline *tl) {
+    if (unlikely(tl->running)) return;
     tl->running = true;
-    tl->started_time = *tl->time_ref - tl->paused_delta;
+    tl->started_time = *tl->time_hook - tl->paused_delta;
 }
 
 void timeline_pause(Timeline *tl) {
+    if (unlikely(!tl->running)) return;
     tl->running = false;
-    tl->paused_delta = *tl->time_ref - tl->started_time;
+    tl->paused_delta = *tl->time_hook - tl->started_time;
 }
 
 void timeline_reset(Timeline *tl) {
-    tl->started_time = *tl->time_ref;
+    tl->started_time = *tl->time_hook;
     tl->paused_delta = 0;
     tl->cur_stamp = 0;
 }
@@ -131,20 +137,34 @@ void timeline_skip(Timeline *tl, float delta) {
         return;
     }
     tl->started_time -= delta;
+    tl->paused_delta += delta;
 }
 
-void timeline_skip_to_stamp(Timeline *tl) {
+void timeline_skip_at(Timeline *tl, float time) {
+    if (time < 0) {
+        log_err("timeline_skip_at(): negative time?");
+        return;
+    }
+    tl->started_time = *tl->time_hook - time;
+    tl->paused_delta = time;
+}
+
+void timeline_to_stamp(Timeline *tl, size_t stamp) {
+    if (unlikely(tl->cur_stamp == tl->len)) {
+        log_err("timeline_to_stamp(): stamp %zu out of bounds", stamp);
+        return;
+    }
+
     _timeline_update(tl);
-    if (tl->cur_stamp == tl->len) return;
-    tl->started_time -=
-        tl->stamps[tl->cur_stamp] - (*tl->time_ref - tl->started_time);
+    tl->started_time = *tl->time_hook - tl->stamps[stamp];
+    tl->paused_delta = tl->stamps[stamp];
 }
 
 // =============================================================================
 void _timelinea_update(TimelineA *tl) {
     if (!tl->running) return;
 
-    float time = *tl->time_ref - tl->started_time;
+    float time = *tl->time_hook - tl->started_time;
     if (!tl->loop) {
         for (size_t i = tl->cur_stamp; i < tl->len; ++i) {
             if (time <= tl->stamps[i]) {
@@ -173,12 +193,22 @@ void _timelinea_update(TimelineA *tl) {
 
 void timelinea_init(TimelineA *tl, Arena *arena, float *time, size_t cap, bool loop) {
     tl->arena = arena;
-    tl->time_ref = time;
+    tl->time_hook = time;
     tl->stamps = (float *)arena_alloc(arena, cap * sizeof(float), alignof(float));
     tl->cap = cap;
     tl->len = 0;
     tl->running = false;
     tl->loop = loop;
+    tl->cur_stamp = 0;
+    tl->started_time = tl->paused_delta = 0;
+}
+
+void timelinea_destroy(TimelineA *tl) {
+    tl->arena = NULL;
+    tl->time_hook = NULL;
+    tl->stamps = NULL;
+    tl->cap = tl->len = 0;
+    tl->running = tl->loop = false;
     tl->cur_stamp = 0;
     tl->started_time = tl->paused_delta = 0;
 }
@@ -192,6 +222,7 @@ size_t timelinea_add(TimelineA *tl, float delta) {
         log_err("timelinea_add(): delta should be > 0 (which was %f) => return 0", delta);
         return 0;
     }
+
     tl->stamps[tl->len] = tl->len == 0 ? delta
                                        : tl->stamps[tl->len - 1] + delta;
     return tl->len++;
@@ -206,6 +237,7 @@ size_t timelinea_insert(TimelineA *tl, float time) {
         log_err("timelinea_insert(): time should be > 0 (which was %f) => return 0", time);
         return 0;
     }
+
     for (size_t i = 0; i <= tl->len; ++i) {
         if (tl->stamps[i] > time || i == tl->len) {
             for (size_t j = tl->len + 1; j-- > i + 1;) {
@@ -213,24 +245,27 @@ size_t timelinea_insert(TimelineA *tl, float time) {
             }
             tl->stamps[i] = time;
 
+            ++tl->len;
             return i;
         }
     }
     assert(false);
 }
 
-void timelinea_start(TimelineA *tl) {
+void timelinea_play(TimelineA *tl) {
+    if (unlikely(tl->running)) return;
     tl->running = true;
-    tl->started_time = *tl->time_ref - tl->paused_delta;
+    tl->started_time = *tl->time_hook - tl->paused_delta;
 }
 
 void timelinea_pause(TimelineA *tl) {
+    if (unlikely(!tl->running)) return;
     tl->running = false;
-    tl->paused_delta = *tl->time_ref - tl->started_time;
+    tl->paused_delta = *tl->time_hook - tl->started_time;
 }
 
 void timelinea_reset(TimelineA *tl) {
-    tl->started_time = *tl->time_ref;
+    tl->started_time = *tl->time_hook;
     tl->paused_delta = 0;
     tl->cur_stamp = 0;
 }
@@ -255,11 +290,25 @@ void timelinea_skip(TimelineA *tl, float delta) {
         return;
     }
     tl->started_time -= delta;
+    tl->paused_delta += delta;
 }
 
-void timelinea_skip_to_stamp(TimelineA *tl) {
+void timelinea_skip_at(TimelineA *tl, float time) {
+    if (time < 0) {
+        log_err("timeline_skip_at(): negative time?");
+        return;
+    }
+    tl->started_time = *tl->time_hook - time;
+    tl->paused_delta = time;
+}
+
+void timelinea_to_stamp(TimelineA *tl, size_t stamp) {
+    if (unlikely(tl->cur_stamp == tl->len)) {
+        log_err("timelinea_to_stamp(): stamp %zu out of bounds", stamp);
+        return;
+    }
+
     _timelinea_update(tl);
-    if (tl->cur_stamp == tl->len) return;
-    tl->started_time -=
-        tl->stamps[tl->cur_stamp] - (*tl->time_ref - tl->started_time);
+    tl->started_time = *tl->time_hook - tl->stamps[stamp];
+    tl->paused_delta = tl->stamps[stamp];
 }

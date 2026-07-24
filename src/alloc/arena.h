@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdalign.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,4 +45,11 @@ static inline void *arena_alloc(Arena *ar, size_t size, size_t align) {
 
     char *ptr = (char *)ar->buffer + aligned;
     return ptr;
+}
+
+static inline void arena_child_init(Arena *ar, size_t size, Arena *par) {
+    ar->buffer = arena_alloc(par, size, alignof(max_align_t));
+    ar->offset = 0;
+    ar->cap = size;
+    memset(ar->buffer, 0, size);
 }
