@@ -1,12 +1,12 @@
 #pragma once
 
 #include "alloc/arena.h"
-#include "time/time.h"
+#include "time/timel.h"
 
 typedef struct {
     Arena *arena;
 
-    TimelineA tl;
+    TimelA tl;
     size_t *spr;
     size_t len;
     size_t cap;

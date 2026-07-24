@@ -79,33 +79,33 @@ void player_init() {
     EttIns *ett_ins = ett_get(&ett_mng, player.ett);
     drwr_hook_set_swpos(&drwr_mng, player.drwr, ett_ins->pos, NULL, NULL);
 
-    // Ani - Timeline
+    // Ani - Timel
     cfgm_pl = spn_find(spn_root(&cfg_context), "ani/player");
     spn_step_flat(&cfgm_pl);
 
-    timelinea_init(&player.ani_run_tl, &player.arena, &cur_frame_time, 4, true);
+    timela_init(&player.ani_run_tl, &player.arena, &cur_frame_time, 4, true);
     spn_move_sibling(&cfgm_pl, "run");
     for (size_t i = 0; i < 4; ++i) {
-        timelinea_add(&player.ani_run_tl, spn_get_float(&cfgm_pl, i));
-        log_debug("player ani_run timeline: stamp %zu at %.2f", i, player.ani_run_tl.stamps[i]);
+        timela_add(&player.ani_run_tl, spn_get_float(&cfgm_pl, i));
+        log_debug("player ani_run timel: stamp %zu at %.2f", i, player.ani_run_tl.stamps[i]);
     }
-    timelinea_play(&player.ani_run_tl);
+    timela_play(&player.ani_run_tl);
 
-    timelinea_init(&player.ani_atk_tl, &player.arena, &cur_frame_time, 4, false);
+    timela_init(&player.ani_atk_tl, &player.arena, &cur_frame_time, 4, false);
     spn_move_sibling(&cfgm_pl, "atk");
     for (size_t i = 0; i < 4; ++i) {
-        timelinea_add(&player.ani_atk_tl, spn_get_float(&cfgm_pl, i));
-        log_debug("player ani_atk timeline: stamp %zu at %.2f", i, player.ani_atk_tl.stamps[i]);
+        timela_add(&player.ani_atk_tl, spn_get_float(&cfgm_pl, i));
+        log_debug("player ani_atk timel: stamp %zu at %.2f", i, player.ani_atk_tl.stamps[i]);
     }
-    timelinea_play(&player.ani_atk_tl);
+    timela_play(&player.ani_atk_tl);
 
-    timelinea_init(&player.ani_roll_tl, &player.arena, &cur_frame_time, 4, false);
+    timela_init(&player.ani_roll_tl, &player.arena, &cur_frame_time, 4, false);
     spn_move_sibling(&cfgm_pl, "roll");
     for (size_t i = 0; i < 4; ++i) {
-        timelinea_add(&player.ani_roll_tl, spn_get_float(&cfgm_pl, i));
-        log_debug("player ani_roll timeline: stamp %zu at %.2f", i, player.ani_roll_tl.stamps[i]);
+        timela_add(&player.ani_roll_tl, spn_get_float(&cfgm_pl, i));
+        log_debug("player ani_roll timel: stamp %zu at %.2f", i, player.ani_roll_tl.stamps[i]);
     }
-    timelinea_play(&player.ani_roll_tl);
+    timela_play(&player.ani_roll_tl);
 
     // Params
     cfgm_pl = spn_find(spn_root(&cfg_context), "game/player");
@@ -220,7 +220,7 @@ void player_frame_update() {
         player.atk_button_inp = true;
     }
 
-    TimelineA *cur_tl = NULL;
+    TimelA *cur_tl = NULL;
     switch (player.cur_ani) {
     case ANI_PLAYER_RUN: cur_tl = &player.ani_run_tl; break;
     case ANI_PLAYER_ATK: cur_tl = &player.ani_atk_tl; break;
@@ -228,7 +228,7 @@ void player_frame_update() {
     default: break;
     }
     if (player.last_ani != player.cur_ani)
-        if (cur_tl) timelinea_reset(cur_tl);
+        if (cur_tl) timela_reset(cur_tl);
     player.last_ani = player.cur_ani;
 
     switch (player.cur_ani) {
@@ -246,24 +246,24 @@ void player_frame_update() {
     case ANI_PLAYER_RUN:
         assert(cur_tl);
         if (player.face_dir[1] < 0)
-            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_run_d[timelinea_cur_stamp(cur_tl)]);
+            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_run_d[timela_cur_stamp(cur_tl)]);
         else if (player.face_dir[1] > 0)
-            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_run_u[timelinea_cur_stamp(cur_tl)]);
+            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_run_u[timela_cur_stamp(cur_tl)]);
         else if (player.face_dir[0] < 0)
-            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_run_l[timelinea_cur_stamp(cur_tl)]);
+            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_run_l[timela_cur_stamp(cur_tl)]);
         else
-            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_run_r[timelinea_cur_stamp(cur_tl)]);
+            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_run_r[timela_cur_stamp(cur_tl)]);
     break;
     case ANI_PLAYER_ATK:
         assert(cur_tl);
         if (player.face_dir[1] < 0)
-            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_atk_d[timelinea_cur_stamp(cur_tl)]);
+            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_atk_d[timela_cur_stamp(cur_tl)]);
         else if (player.face_dir[1] > 0)
-            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_atk_u[timelinea_cur_stamp(cur_tl)]);
+            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_atk_u[timela_cur_stamp(cur_tl)]);
         else if (player.face_dir[0] < 0)
-            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_atk_l[timelinea_cur_stamp(cur_tl)]);
+            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_atk_l[timela_cur_stamp(cur_tl)]);
         else
-            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_atk_r[timelinea_cur_stamp(cur_tl)]);
+            drwr_set_spr(&drwr_mng, player.drwr, player_def.spr_atk_r[timela_cur_stamp(cur_tl)]);
     break;
     case ANI_PLAYER_ROLL: cur_tl = &player.ani_roll_tl; break;
     default: break;

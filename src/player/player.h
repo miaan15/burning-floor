@@ -3,7 +3,7 @@
 #include "alloc/arena.h"
 #include "cglm/types.h"
 #include "common.h"
-#include "time/time.h"
+#include "time/timel.h"
 #include <stddef.h>
 
 typedef struct {
@@ -49,9 +49,9 @@ typedef struct {
 
     Arena arena;
 
-    TimelineA ani_run_tl;
-    TimelineA ani_atk_tl;
-    TimelineA ani_roll_tl;
+    TimelA ani_run_tl;
+    TimelA ani_atk_tl;
+    TimelA ani_roll_tl;
 } Player;
 
 extern PlayerDef player_def;

@@ -4,7 +4,7 @@
 
 void ani_init(Ani *ani, Arena *arena, float *time_hook, size_t cap, bool loop) {
     ani->arena = arena;
-    timelinea_init(&ani->tl, arena, time_hook, cap, loop);
+    timela_init(&ani->tl, arena, time_hook, cap, loop);
     ani->spr = (size_t *)arena_alloc(arena, cap * sizeof(size_t), alignof(size_t));
     ani->len = 0;
     ani->cap = cap;
@@ -14,7 +14,7 @@ void ani_init(Ani *ani, Arena *arena, float *time_hook, size_t cap, bool loop) {
 
 void ani_destroy(Ani *ani) {
     ani->arena = NULL;
-    timelinea_destroy(&ani->tl);
+    timela_destroy(&ani->tl);
     ani->spr = NULL;
     ani->spr_sink = NULL;
     ani->len = ani->cap = 0;
@@ -30,7 +30,7 @@ size_t ani_add(Ani *ani, float delta, size_t spr) {
         return 0;
     }
 
-    timelinea_add(&ani->tl, delta);
+    timela_add(&ani->tl, delta);
     ani->spr[ani->len] = spr;
 
     return ani->len++;
@@ -46,7 +46,7 @@ size_t ani_insert(Ani *ani, float time, size_t spr) {
         return 0;
     }
 
-    size_t i = timelinea_insert(&ani->tl, time);
+    size_t i = timela_insert(&ani->tl, time);
     ani->spr[i] = spr;
 
     ++ani->len;
@@ -55,8 +55,8 @@ size_t ani_insert(Ani *ani, float time, size_t spr) {
 }
 
 void ani_start(Ani *ani) {
-    timelinea_reset(&ani->tl);
-    timelinea_play(&ani->tl);
+    timela_reset(&ani->tl);
+    timela_play(&ani->tl);
     ani->running = true;
 }
 
@@ -65,8 +65,8 @@ void ani_start_at(Ani *ani, float time) {
         log_err("ani_start_at(): time is not negetive");
         return;
     }
-    timelinea_skip_at(&ani->tl, time);
-    timelinea_play(&ani->tl);
+    timela_skip_at(&ani->tl, time);
+    timela_play(&ani->tl);
     ani->running = true;
 }
 
@@ -77,7 +77,7 @@ void ani_end(Ani *ani) {
 void ani_update(Ani *ani) {
     if (!ani->running) return;
     if (ani->spr_sink != NULL)
-        *ani->spr_sink = ani->spr[timelinea_cur_stamp(&ani->tl)];
+        *ani->spr_sink = ani->spr[timela_cur_stamp(&ani->tl)];
 }
 
 void ani_sink_set(Ani *ani, size_t *spr_sink) {
