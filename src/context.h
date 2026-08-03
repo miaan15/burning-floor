@@ -8,5 +8,8 @@ extern SDL_Renderer *renderer;
 
 extern Arena global_ar;
 
+extern const bool *keyb_state;
+extern bool *last_keyb_state;
+
 extern SDL_Texture **texs;
 extern size_t texs_len;

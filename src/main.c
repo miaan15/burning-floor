@@ -4,13 +4,16 @@
 #include <stdalign.h>
 #include <string.h>
 
+SDL_Window *window = NULL;
+SDL_Renderer *renderer = NULL;
+
 Arena global_ar = {0};
+
+const bool *keyb_state = NULL;
+bool *last_keyb_state = NULL;
 
 SDL_Texture **texs = NULL;
 size_t texs_len = 0;
-
-SDL_Window *window = NULL;
-SDL_Renderer *renderer = NULL;
 
 void register_tex(const char *name) {
     char dir[128] = _ROOT_DIR "/asset/img/";
@@ -45,11 +48,19 @@ int main() {
 
     arena_init(&global_ar, 100u << 10 << 10); // 100mB
 
+    { // input
+    int numkeys;
+    SDL_GetKeyboardState(&numkeys);
+    last_keyb_state = arena_alloc(&global_ar, numkeys, 1);
+    }
+
+    { // tex
     const size_t MAX_TEX = 16;
     texs = arena_alloc(&global_ar, MAX_TEX * sizeof(SDL_Texture *), alignof(SDL_Texture *));
     register_tex("img_player");
     register_tex("img_enemy");
     register_tex("img_vfx");
+    }
 
     while (true) {
         SDL_Event event;
@@ -59,6 +70,16 @@ int main() {
             }
         }
 
+        { // input
+        int numkeys;
+        keyb_state = SDL_GetKeyboardState(&numkeys);
+
+        if (keyb_state[SDL_SCANCODE_W] && !last_keyb_state[SDL_SCANCODE_W]) log_info("XD");
+
+        memcpy(last_keyb_state, keyb_state, numkeys);
+        }
+
+        // render
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
