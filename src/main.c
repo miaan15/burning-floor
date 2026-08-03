@@ -1,26 +1,55 @@
 #include "context.h"
 #include "log.h"
 #include <SDL3/SDL.h>
+#include <stdalign.h>
+#include <string.h>
 
 Arena global_ar = {0};
 
-int main() {
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-        return 1;
-    }
+SDL_Texture **texs = NULL;
+size_t texs_len = 0;
 
-    SDL_Window *window;
-    SDL_Renderer *renderer;
+SDL_Window *window = NULL;
+SDL_Renderer *renderer = NULL;
+
+void register_tex(const char *name) {
+    char dir[128] = _ROOT_DIR "/asset/img/";
+    strcat(dir, name);
+    const char *ex = ".png";
+    strcat(dir, ex);
+
+    SDL_Surface *surf = SDL_LoadPNG(dir);
+    if (surf == NULL) log_err("create surface failed: name: %s: %s", name, SDL_GetError());
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
+    if (tex == NULL) log_err("create texture failed: name: %s: %s", name, SDL_GetError());
+
+    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
+
+    texs[texs_len++] = tex;
+
+    SDL_DestroySurface(surf);
+}
+
+enum {
+    TEX_PLAYER = 0,
+    TEX_ENEMY,
+    TEX_VFX,
+};
+
+int main() {
+    if (!SDL_Init(SDL_INIT_VIDEO)) { return 1; }
+
     if (!SDL_CreateWindowAndRenderer("BurningFloor",
                                      800, 600, 0,
-                                     &window, &renderer)) {
-        return 1;
-    }
+                                     &window, &renderer)) { return 1; }
 
-    SDL_Surface *surf = SDL_LoadPNG(_ROOT_DIR "/asset/img/img_player.png");
-    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
-    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
-    SDL_DestroySurface(surf);
+    arena_init(&global_ar, 100u << 10 << 10); // 100mB
+
+    const size_t MAX_TEX = 16;
+    texs = arena_alloc(&global_ar, MAX_TEX * sizeof(SDL_Texture *), alignof(SDL_Texture *));
+    register_tex("img_player");
+    register_tex("img_enemy");
+    register_tex("img_vfx");
 
     while (true) {
         SDL_Event event;
@@ -35,12 +64,14 @@ int main() {
 
         SDL_FRect srect = {0, 0, 20, 20};
         SDL_FRect drect = {100, 100, 200, 200};
-        SDL_RenderTexture(renderer, tex, &srect, &drect);
+        SDL_RenderTexture(renderer, texs[TEX_PLAYER], &srect, &drect);
 
         SDL_RenderPresent(renderer);
     }
 
 END:
+    arena_destroy(&global_ar);
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
