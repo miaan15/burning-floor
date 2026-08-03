@@ -67,5 +67,5 @@ target_include_directories(a PRIVATE ${INC_DIRS})
 target_link_libraries(a PRIVATE ${LIBS})
 
 target_compile_definitions(a PRIVATE
-    PROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    _ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )
