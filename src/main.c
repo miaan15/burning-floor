@@ -1,5 +1,6 @@
 #include "context.h"
 #include "log.h"
+#include "draw.h"
 #include <SDL3/SDL.h>
 #include <stdalign.h>
 #include <string.h>
@@ -64,6 +65,8 @@ int main() {
     register_tex("img_enemy");
     register_tex("img_vfx");
     }
+
+    draw_init();
 
     while (true) {
         SDL_Event event;
