@@ -7,6 +7,7 @@ execute_process(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+# SDL
 if(NOT IS_DIRECTORY ${VENDOR_DIR}/sdl)
     execute_process(
         COMMAND bash -c [[

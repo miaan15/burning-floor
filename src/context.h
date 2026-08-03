@@ -1,6 +1,7 @@
 #pragma once
 
 #include "alloc/arena.h"
+#include "math/vec.h"
 #include <SDL3/SDL_render.h>
 
 extern SDL_Window *window;

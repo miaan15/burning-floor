@@ -39,6 +39,9 @@ enum {
     TEX_VFX,
 };
 
+Vec2 player_input = {0};
+Vec2 player_pos = {0};
+
 int main() {
     if (!SDL_Init(SDL_INIT_VIDEO)) { return 1; }
 
@@ -76,7 +79,18 @@ int main() {
 
         if (keyb_state[SDL_SCANCODE_W] && !last_keyb_state[SDL_SCANCODE_W]) log_info("XD");
 
+        player_input = (Vec2){0};
+        if (keyb_state[SDL_SCANCODE_D]) player_input.x += 1;
+        if (keyb_state[SDL_SCANCODE_A]) player_input.x -= 1;
+        if (keyb_state[SDL_SCANCODE_W]) player_input.y += 1;
+        if (keyb_state[SDL_SCANCODE_S]) player_input.y -= 1;
+        vec2_normalize(&player_input);
+
         memcpy(last_keyb_state, keyb_state, numkeys);
+        }
+
+        {
+        vec2_add(&player_pos, player_pos, player_input);
         }
 
         // render
@@ -84,7 +98,7 @@ int main() {
         SDL_RenderClear(renderer);
 
         SDL_FRect srect = {0, 0, 20, 20};
-        SDL_FRect drect = {100, 100, 200, 200};
+        SDL_FRect drect = {100 + player_pos.x, 100 - player_pos.y, 200, 200};
         SDL_RenderTexture(renderer, texs[TEX_PLAYER], &srect, &drect);
 
         SDL_RenderPresent(renderer);
