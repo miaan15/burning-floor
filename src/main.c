@@ -1,5 +1,7 @@
-#include <stdio.h>
+#include "context.h"
 #include <SDL3/SDL.h>
+
+Arena global_ar = {0};
 
 int main() {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
