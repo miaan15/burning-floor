@@ -64,7 +64,7 @@ int main() {
                                      &window, &renderer)) { return 1; }
     SDL_GetWindowSizeInPixels(window, &window_w, &window_h);
 
-    arena_init(&global_ar, 100u << 10 << 10); // 100mB
+    arena_init(&global_ar, 100ull << 10); // 100mB
 
     { // input
     int numkeys;
@@ -149,6 +149,11 @@ int main() {
         draw(drawer);
 
         SDL_RenderPresent(renderer);
+
+        // const uint64_t CAP_FPS = 60;
+        // uint64_t _d = SDL_GetTicks() - time_ms;
+        // uint64_t _fps = 1000ull / CAP_FPS;
+        // SDL_Delay(_fps > _d ? _d : 0);
     }
 
 END:
