@@ -12,6 +12,8 @@ typedef struct {
 typedef struct {
     Sprite *sprite;
     SDL_FRect drect;
+
+    Vec2 last_pos;
 } Drawer;
 
 typedef struct {

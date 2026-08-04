@@ -1,6 +1,5 @@
 #include "draw.h"
 #include "context.h"
-#include "log.h"
 #include <stdalign.h>
 
 Sprite *sprite_list = NULL;
@@ -40,5 +39,10 @@ void draw_update_hook(DrawerHook *hook) {
 }
 
 void draw(Drawer *drawer) {
-    SDL_RenderTexture(renderer, drawer->sprite->tex, &drawer->sprite->srect, &drawer->drect);
+    SDL_FRect drect;
+    drect.x = drawer->last_pos.x + (drawer->drect.x - drawer->last_pos.x) * tick_alpha;
+    drect.y = drawer->last_pos.y + (drawer->drect.y - drawer->last_pos.y) * tick_alpha;
+    drect.w = drawer->drect.w;
+    drect.h = drawer->drect.h;
+    SDL_RenderTexture(renderer, drawer->sprite->tex, &drawer->sprite->srect, &drect);
 }

@@ -13,6 +13,11 @@ static inline void vec2_add(Vec2 *d, Vec2 a, Vec2 b) {
     d->y = a.y + b.y;
 }
 
+static inline void vec2_scale(Vec2 *d, Vec2 a, float s) {
+    d->x = a.x * s;
+    d->y = a.y * s;
+}
+
 static inline float vec2_mag2(Vec2 v) {
     return v.x * v.x + v.y * v.y;
 }

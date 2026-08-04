@@ -3,6 +3,7 @@
 #include "draw.h"
 #include <SDL3/SDL.h>
 #include <stdalign.h>
+#include <stdint.h>
 #include <string.h>
 
 SDL_Window *window = NULL;
@@ -14,6 +15,16 @@ Arena global_ar = {0};
 
 const bool *keyb_state = NULL;
 bool *last_keyb_state = NULL;
+
+uint64_t time_ms = 0;
+uint64_t deltatime_ms = 0;
+float time_s = 0;
+float deltatime_s = 0;
+
+uint64_t ticks_cnt = 0;
+uint64_t tick_delta_ms = 20;
+float tick_alpha = 0;
+bool tick_flag = false;
 
 SDL_Texture **texs = NULL;
 size_t texs_len = 0;
@@ -75,7 +86,7 @@ int main() {
     DrawerHook *drawer_hook;
     {
     sprite_list[0] = (Sprite){texs[0], (SDL_FRect){0, 0, 20, 20}};
-    Drawer d = {&sprite_list[0], (SDL_FRect){0}};
+    Drawer d = {&sprite_list[0], (SDL_FRect){0}, (Vec2){0}};
     PoolResult p_d = pool_new(&drawer_pool, &d);
     DrawerHook dh = {&player_pos, NULL};
     PoolResult p_dh = pool_new(&drawer_hook_pool, &dh);
@@ -83,7 +94,20 @@ int main() {
     drawer_hook = p_dh.ptr;
     }
 
+    uint64_t last_time_ms = 0;
+    uint64_t accml_time_ms = 0;
     while (true) {
+        time_ms = SDL_GetTicks();
+        deltatime_ms = time_ms - last_time_ms;
+        last_time_ms = time_ms;
+
+        time_s = (float)time_ms / 1000.0f;
+        deltatime_s = (float)deltatime_ms / 1000.0f;
+
+        accml_time_ms += deltatime_ms;
+
+        tick_flag = false;
+
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
@@ -106,9 +130,16 @@ int main() {
         memcpy(last_keyb_state, keyb_state, numkeys);
         }
 
-        {
-        vec2_add(&player_pos, player_pos, player_input);
+        while (accml_time_ms >= tick_delta_ms) {
+            accml_time_ms -= tick_delta_ms;
+            tick_flag = true;
+
+            drawer->last_pos = (Vec2){drawer->drect.x, drawer->drect.y};
+
+            Vec2 move_delta = {0}; vec2_scale(&move_delta, player_input, tick_delta_ms);
+            vec2_add(&player_pos, player_pos, move_delta);
         }
+        tick_alpha = (float)accml_time_ms / (float)tick_delta_ms;
 
         // render
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
