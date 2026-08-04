@@ -8,6 +8,8 @@
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 
+int window_w = 0, window_h = 0;
+
 Arena global_ar = {0};
 
 const bool *keyb_state = NULL;
@@ -49,6 +51,7 @@ int main() {
     if (!SDL_CreateWindowAndRenderer("BurningFloor",
                                      800, 600, 0,
                                      &window, &renderer)) { return 1; }
+    SDL_GetWindowSizeInPixels(window, &window_w, &window_h);
 
     arena_init(&global_ar, 100u << 10 << 10); // 100mB
 
@@ -66,7 +69,19 @@ int main() {
     register_tex("img_vfx");
     }
 
-    draw_init();
+    draw_init(2, 2);
+
+    Drawer *drawer;
+    DrawerHook *drawer_hook;
+    {
+    sprite_list[0] = (Sprite){texs[0], (SDL_FRect){0, 0, 20, 20}};
+    Drawer d = {&sprite_list[0], (SDL_FRect){0}};
+    PoolResult p_d = pool_new(&drawer_pool, &d);
+    DrawerHook dh = {&player_pos, NULL};
+    PoolResult p_dh = pool_new(&drawer_hook_pool, &dh);
+    drawer = p_d.ptr;
+    drawer_hook = p_dh.ptr;
+    }
 
     while (true) {
         SDL_Event event;
@@ -75,12 +90,11 @@ int main() {
                 goto END;
             }
         }
+        SDL_GetWindowSizeInPixels(window, &window_w, &window_h);
 
         { // input
         int numkeys;
         keyb_state = SDL_GetKeyboardState(&numkeys);
-
-        if (keyb_state[SDL_SCANCODE_W] && !last_keyb_state[SDL_SCANCODE_W]) log_info("XD");
 
         player_input = (Vec2){0};
         if (keyb_state[SDL_SCANCODE_D]) player_input.x += 1;
@@ -100,9 +114,8 @@ int main() {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        SDL_FRect srect = {0, 0, 20, 20};
-        SDL_FRect drect = {100 + player_pos.x, 100 - player_pos.y, 200, 200};
-        SDL_RenderTexture(renderer, texs[TEX_PLAYER], &srect, &drect);
+        draw_update_hook(drawer_hook);
+        draw(drawer);
 
         SDL_RenderPresent(renderer);
     }

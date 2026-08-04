@@ -1,11 +1,12 @@
 #pragma once
 
 #include "alloc/arena.h"
-#include "math/vec.h"
 #include <SDL3/SDL_render.h>
 
 extern SDL_Window *window;
 extern SDL_Renderer *renderer;
+
+extern int window_w, window_h;
 
 extern Arena global_ar;
 

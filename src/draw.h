@@ -16,6 +16,7 @@ typedef struct {
 
 typedef struct {
     Vec2 *pos;
+    Vec2 *center;
 } DrawerHook;
 
 extern Sprite *sprite_list;
@@ -23,4 +24,11 @@ extern Sprite *sprite_list;
 extern Pool drawer_pool;
 extern Pool drawer_hook_pool;
 
-void draw_init();
+extern float drawer_zoom;
+extern float drawer_scale;
+
+void draw_init(float zoom, float scale);
+
+void draw_update_hook(DrawerHook *hook);
+
+void draw(Drawer *drawer);
