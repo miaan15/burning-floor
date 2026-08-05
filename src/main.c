@@ -80,19 +80,13 @@ int main() {
     register_tex("img_vfx");
     }
 
-    draw_init(2, 2);
+    draw_init(&draw_sys, 1024, 1024, 2, 2);
 
-    Drawer *drawer;
-    DrawerHook *drawer_hook;
-    {
-    sprite_list[0] = (Sprite){texs[0], (SDL_FRect){0, 0, 20, 20}};
-    Drawer d = {&sprite_list[0], (SDL_FRect){0}, (Vec2){0}};
-    PoolResult p_d = pool_new(&drawer_pool, &d);
-    DrawerHook dh = {&player_pos, NULL};
-    PoolResult p_dh = pool_new(&drawer_hook_pool, &dh);
-    drawer = p_d.ptr;
-    drawer_hook = p_dh.ptr;
-    }
+    SDL_FRect srect = {0, 0, 20, 20};
+    DrawerResult res =
+        draw_new_drawer(&draw_sys, draw_new_sprite(&draw_sys, texs[0], &srect), NULL);
+    res.hook->active = true;
+    res.hook->pos = &player_pos;
 
     uint64_t last_time_ms = 0;
     uint64_t accml_time_ms = 0;
@@ -134,8 +128,6 @@ int main() {
             accml_time_ms -= tick_delta_ms;
             tick_flag = true;
 
-            drawer->last_pos = (Vec2){drawer->drect.x, drawer->drect.y};
-
             Vec2 move_delta = {0}; vec2_scale(&move_delta, player_input, tick_delta_ms);
             vec2_add(&player_pos, player_pos, move_delta);
         }
@@ -145,8 +137,8 @@ int main() {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        draw_update_hook(drawer_hook);
-        draw(drawer);
+        draw_update(&draw_sys);
+        draw(&draw_sys);
 
         SDL_RenderPresent(renderer);
 

@@ -17,20 +17,42 @@ typedef struct {
 } Drawer;
 
 typedef struct {
+    bool active;
     Vec2 *pos;
+    Vec2 *size;
     Vec2 *center;
 } DrawerHook;
 
-extern Sprite *sprite_list;
+typedef struct {
+    size_t sprite_cap;
+    size_t drawer_cap;
 
-extern Pool drawer_pool;
-extern Pool drawer_hook_pool;
+    Sprite *sprites;
+    size_t sprites_len;
 
-extern float drawer_zoom;
-extern float drawer_scale;
+    Pool drawer_pool;
+    Pool hook_pool;
 
-void draw_init(float zoom, float scale);
+    // configs
+    float zoom, scale;
+} DrawSys;
 
-void draw_update_hook(DrawerHook *hook);
+typedef struct {
+    Drawer *drawer;
+    DrawerHook *hook;
+    char meta;
+} DrawerResult;
 
-void draw(Drawer *drawer);
+extern DrawSys draw_sys;
+
+extern Sprite *sprite_stub;
+extern Drawer *drawer_stub;
+
+void draw_init(DrawSys *sys, size_t sprite_cap, size_t drawer_cap, float zoom, float scale);
+
+Sprite *draw_new_sprite(DrawSys *sys, SDL_Texture *tex, SDL_FRect *srect);
+DrawerResult draw_new_drawer(DrawSys *sys, Sprite *sprite, SDL_FRect *drect);
+
+void draw_update(DrawSys *sys);
+
+void draw(DrawSys *sys);
