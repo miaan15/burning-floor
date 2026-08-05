@@ -4,45 +4,31 @@
 #include <assert.h>
 #include <stdalign.h>
 
-DrawSys draw_sys = {0};
+// Sprite
+size_t sprite_cap = 0;
+Sprite *sprites = NULL;
+size_t sprites_len = 0;
 
 Sprite *sprite_stub = NULL;
-Drawer *drawer_stub = NULL;
 
-void draw_init(DrawSys *sys, size_t sprite_cap, size_t drawer_cap, float zoom, float scale) {
-    ++sprite_cap; ++drawer_cap;
-
-    sys->sprite_cap = sprite_cap;
-    sys->drawer_cap = drawer_cap;
-
-    sys->sprites = arena_alloc(&global_ar, sprite_cap * sizeof(Sprite), alignof(Sprite));
-    sys->sprites_len = 0;
-
-    void *ptr = arena_alloc(&global_ar, pool_req_size(sizeof(Drawer), drawer_cap), alignof(max_align_t));
-    pool_init_over(&sys->drawer_pool, ptr, sizeof(Drawer), drawer_cap);
-    ptr = arena_alloc(&global_ar, pool_req_size(sizeof(DrawerHook), drawer_cap), alignof(max_align_t));
-    pool_init_over(&sys->hook_pool, ptr, sizeof(DrawerHook), drawer_cap);
-
-    sys->zoom = zoom;
-    sys->scale = scale;
+void sprite_init(size_t cap) {
+    ++cap;
+    sprite_cap = cap;
+    sprites = arena_alloc(&global_ar, cap * sizeof(Sprite), alignof(Sprite));
+    sprites_len = 0;
 
     // stub
-    sys->sprites[sys->sprites_len++] = (Sprite){0}; // FIXME
-    sprite_stub = &sys->sprites[0];
-
-    Drawer stub_drawer = {&sys->sprites[0], {0, 0, 100, 100}, {0, 0}};
-    drawer_stub = pool_new(&sys->drawer_pool, &stub_drawer).ptr;
-
-    DrawerHook stub_hook = {0};
-    pool_new(&sys->hook_pool, &stub_hook);
+    sprites[sprites_len++] = (Sprite){0}; // FIXME use should stub tex not null
+    sprite_stub = &sprites[0];
 }
 
-Sprite *draw_new_sprite(DrawSys *sys, SDL_Texture *tex, SDL_FRect *srect) {
-    if (unlikely(sys->sprites_len >= sys->sprite_cap)) {
-        log_err("draw_new_sprite(): too much sprite => stub");
+Sprite *sprite_new(SDL_Texture *tex, SDL_FRect *srect) {
+    if (unlikely(sprites_len >= sprite_cap)) {
+        log_err("sprite_new(): too much sprite => stub");
         return sprite_stub;
     }
-    Sprite *ptr = &sys->sprites[sys->sprites_len++];
+
+    Sprite *ptr = &sprites[sprites_len++];
     *ptr = (Sprite){tex, *srect};
 
     log_debug("New Sprite %p: tex: %p, srect: %.0f %.0f %.0f %.0f",
@@ -51,37 +37,58 @@ Sprite *draw_new_sprite(DrawSys *sys, SDL_Texture *tex, SDL_FRect *srect) {
     return ptr;
 }
 
-DrawerResult draw_new_drawer(DrawSys *sys, Sprite *sprite, SDL_FRect *drect) {
-    Drawer drawer = {sprite != NULL ? sprite : drawer_stub->sprite,
-                     drect != NULL ? *drect : drawer_stub->drect};
-    PoolResult drawer_res = pool_new(&sys->drawer_pool, &drawer);
-    PoolResult hook_res = pool_new(&sys->hook_pool, NULL);
-    assert(drawer_res.meta == hook_res.meta);
+// Draw
+DrawSys draw_sys = {0};
 
-    if (unlikely(drawer_res.ptr == NULL)) {
-        log_err("draw_new_drawer(): too much drawer => stub");
-        return (DrawerResult){ drawer_stub, NULL, 0 };
-    }
+Drawer *drawer_stub = NULL;
+DrHook *drawer_hook_stub = NULL;
 
-    log_debug("New Drawer %p::%d: hook: %p, sprite: %p",
-            drawer_res.ptr, drawer_res.meta, hook_res.ptr, sprite);
+void draw_init(size_t cap, float zoom, float scale) {
+    ++cap;
+    draw_sys.cap = cap;
+    draw_sys.zoom = zoom;
+    draw_sys.scale = scale;
 
-    return (DrawerResult){ drawer_res.ptr, hook_res.ptr, drawer_res.meta };
+    { void *ptr = arena_alloc(&global_ar, pool_caps(sizeof(Drawer), cap), alignof(max_align_t));
+    pool_init_over(&draw_sys.drawer_pool, ptr, sizeof(Drawer), cap); }
+
+    { void *ptr = arena_alloc(&global_ar, pool_caps(sizeof(DrHook), cap), alignof(max_align_t));
+    pool_init_over(&draw_sys.hook_pool, ptr, sizeof(DrHook), cap); }
+
+    // stub
+    Drawer d = { sprite_stub, {0, 0, 100, 100}, {0, 0} };
+    drawer_stub = pool_new(&draw_sys.drawer_pool, &d);
+
+    drawer_hook_stub = pool_new(&draw_sys.hook_pool, NULL);
 }
 
-#define _draw_loop \
-    size_t index = 0; \
-    while (true) { \
-        if (index >= sys->drawer_pool.maxi) break; \
-        if (!(sys->drawer_pool.meta[index] & 1)) continue; \
-        Drawer *drawer \
-            = (Drawer *)((char *)sys->drawer_pool.raw + (index * sizeof(Drawer))); \
-        DrawerHook *hook \
-            = (DrawerHook *)((char *)sys->hook_pool.raw + (index * sizeof(DrawerHook))); \
-        ++index; \
+DrawerAndHook draw_new(Sprite *sprite, SDL_FRect *drect) {
+    Drawer d = {sprite != NULL ? sprite : drawer_stub->sprite,
+                drect != NULL ? *drect : drawer_stub->drect};
 
-void draw_update(DrawSys *sys) {
-    _draw_loop {
+    Drawer *dptr = pool_new(&draw_sys.drawer_pool, &d);
+    DrHook *hptr = pool_new(&draw_sys.hook_pool, NULL);
+
+    if (unlikely(dptr == NULL)) {
+        log_err("draw_new(): too much drawer => stub");
+        return (DrawerAndHook){ drawer_stub, drawer_hook_stub };
+    }
+
+    assert(pool_index(&draw_sys.drawer_pool, dptr) == pool_index(&draw_sys.hook_pool, hptr));
+
+    log_debug("New Drawer %p - Hook %p: sprite: %p",
+            dptr, hptr, sprite);
+
+    return (DrawerAndHook){ dptr, hptr };
+}
+
+void draw_update() {
+    for (size_t i = 0; i < draw_sys.drawer_pool.maxi; ++i) {
+        if (!pool_alive_idx(&draw_sys.drawer_pool, i)) continue;
+
+        Drawer *drawer = pool_ptr(&draw_sys.drawer_pool, i);
+        DrHook *hook = pool_ptr(&draw_sys.hook_pool, i);
+
         if (tick_flag) {
             drawer->last_pos = (Vec2){drawer->drect.x, drawer->drect.y};
         }
@@ -92,20 +99,25 @@ void draw_update(DrawSys *sys) {
         Vec2 center = hook->center == NULL ? (Vec2){.5, .5} : *hook->center;
 
         SDL_FRect srect = drawer->sprite->srect;
-        drawer->drect.x = (pos.x - (center.x * srect.w * sys->scale)) * sys->zoom;
-        drawer->drect.y = window_h - ((pos.y + ((1 - center.y) * srect.h * sys->scale)) * sys->zoom);
-        drawer->drect.w = srect.w * sys->scale * sys->zoom;
-        drawer->drect.h = srect.h * sys->scale * sys->zoom;
-    }}
+        drawer->drect.x = (pos.x - (center.x * srect.w * draw_sys.scale)) * draw_sys.zoom;
+        drawer->drect.y = window_h - ((pos.y + ((1 - center.y) * srect.h * draw_sys.scale)) * draw_sys.zoom);
+        drawer->drect.w = srect.w * draw_sys.scale * draw_sys.zoom;
+        drawer->drect.h = srect.h * draw_sys.scale * draw_sys.zoom;
+    }
 }
 
-void draw(DrawSys *sys) {
-    _draw_loop {
+void draw() {
+    for (size_t i = 0; i < draw_sys.drawer_pool.maxi; ++i) {
+        if (!pool_alive_idx(&draw_sys.drawer_pool, i)) continue;
+
+        Drawer *drawer = pool_ptr(&draw_sys.drawer_pool, i);
+        DrHook *hook = pool_ptr(&draw_sys.hook_pool, i);
+
         SDL_FRect drect;
         drect.x = drawer->last_pos.x + (drawer->drect.x - drawer->last_pos.x) * tick_alpha;
         drect.y = drawer->last_pos.y + (drawer->drect.y - drawer->last_pos.y) * tick_alpha;
         drect.w = drawer->drect.w;
         drect.h = drawer->drect.h;
         SDL_RenderTexture(renderer, drawer->sprite->tex, &drawer->sprite->srect, &drect);
-    }}
+    }
 }

@@ -64,7 +64,7 @@ int main() {
                                      &window, &renderer)) { return 1; }
     SDL_GetWindowSizeInPixels(window, &window_w, &window_h);
 
-    arena_init(&global_ar, 100ull << 10); // 100mB
+    arena_init(&global_ar, 100ull << 10 << 10); // 100mB
 
     { // input
     int numkeys;
@@ -80,13 +80,14 @@ int main() {
     register_tex("img_vfx");
     }
 
-    draw_init(&draw_sys, 1024, 1024, 2, 2);
-
+    sprite_init(1024);
     SDL_FRect srect = {0, 0, 20, 20};
-    DrawerResult res =
-        draw_new_drawer(&draw_sys, draw_new_sprite(&draw_sys, texs[0], &srect), NULL);
-    res.hook->active = true;
-    res.hook->pos = &player_pos;
+    Sprite *sprite = sprite_new(texs[0], &srect);
+
+    draw_init(1024, 2, 2);
+    DrawerAndHook dh = draw_new(sprite, NULL);
+    dh.hook->active = true;
+    dh.hook->pos = &player_pos;
 
     uint64_t last_time_ms = 0;
     uint64_t accml_time_ms = 0;
@@ -137,8 +138,8 @@ int main() {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        draw_update(&draw_sys);
-        draw(&draw_sys);
+        draw_update();
+        draw();
 
         SDL_RenderPresent(renderer);
 
