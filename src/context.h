@@ -23,6 +23,3 @@ extern uint64_t ticks_cnt;
 extern uint64_t tick_delta_ms;
 extern float tick_alpha;
 extern bool tick_flag;
-
-extern SDL_Texture **texs;
-extern size_t texs_len;

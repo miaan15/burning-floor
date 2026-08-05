@@ -4,10 +4,61 @@
 #include <assert.h>
 #include <stdalign.h>
 
+// Texture
+size_t texture_cap = 0;
+Texture *textures = NULL;
+size_t texture_len = 0;
+
+Texture *texture_stub = NULL;
+
+void texture_init(size_t cap) {
+    ++cap;
+    texture_cap = cap;
+    textures = arena_alloc(&global_ar, cap * sizeof(Texture), alignof(Texture));
+    texture_len = 0;
+
+    // stub
+    textures[texture_len++] = (Texture){0}; // FIXME create unique stub texture
+    texture_stub = &textures[0];
+}
+
+Texture *texture_new(const char *path, SDL_Renderer *renderer, SDL_ScaleMode scalemode) {
+    if (unlikely(texture_len >= texture_cap)) {
+        log_err("texture_new(): too much texture => stub");
+        return texture_stub;
+    }
+
+    SDL_Surface *surf = SDL_LoadPNG(path);
+    if (unlikely(!surf)) {
+        log_err("texture_new(): try load surface from %s but %s => return stub",
+                path, SDL_GetError());
+        return texture_stub;
+    }
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
+    SDL_SetTextureScaleMode(tex, scalemode);
+    if (unlikely(!tex)) {
+        log_err("texture_new(): try load texture from %s but %s => return stub",
+                path, SDL_GetError());
+        SDL_DestroySurface(surf);
+        return texture_stub;
+    }
+
+    Texture *ptr = &textures[texture_len++];
+    *ptr = (Texture){ tex, surf->w, surf->h };
+
+
+    log_debug("New Texture %p: dir: %s, scale mode: %d; size: %d %d",
+            ptr, path, scalemode, surf->w, surf->h);
+
+    SDL_DestroySurface(surf);
+
+    return ptr;
+}
+
 // Sprite
 size_t sprite_cap = 0;
 Sprite *sprites = NULL;
-size_t sprites_len = 0;
+size_t sprite_len = 0;
 
 Sprite *sprite_stub = NULL;
 
@@ -15,21 +66,21 @@ void sprite_init(size_t cap) {
     ++cap;
     sprite_cap = cap;
     sprites = arena_alloc(&global_ar, cap * sizeof(Sprite), alignof(Sprite));
-    sprites_len = 0;
+    sprite_len = 0;
 
     // stub
-    sprites[sprites_len++] = (Sprite){0}; // FIXME use should stub tex not null
+    sprites[sprite_len++] = (Sprite){0}; // FIXME use should stub tex not null
     sprite_stub = &sprites[0];
 }
 
 Sprite *sprite_new(SDL_Texture *tex, SDL_FRect *srect) {
-    if (unlikely(sprites_len >= sprite_cap)) {
+    if (unlikely(sprite_len >= sprite_cap)) {
         log_err("sprite_new(): too much sprite => stub");
         return sprite_stub;
     }
 
-    Sprite *ptr = &sprites[sprites_len++];
-    *ptr = (Sprite){tex, *srect};
+    Sprite *ptr = &sprites[sprite_len++];
+    *ptr = (Sprite){ tex, *srect };
 
     log_debug("New Sprite %p: tex: %p, srect: %.0f %.0f %.0f %.0f",
             ptr, tex, srect->x, srect->y, srect->w, srect->h);

@@ -26,32 +26,14 @@ uint64_t tick_delta_ms = 20;
 float tick_alpha = 0;
 bool tick_flag = false;
 
-SDL_Texture **texs = NULL;
-size_t texs_len = 0;
-
-void register_tex(const char *name) {
+Texture *texture_new_help(const char *name) {
     char dir[128] = _ROOT_DIR "/asset/img/";
     strcat(dir, name);
     const char *ex = ".png";
     strcat(dir, ex);
 
-    SDL_Surface *surf = SDL_LoadPNG(dir);
-    if (surf == NULL) log_err("create surface failed: name: %s: %s", name, SDL_GetError());
-    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
-    if (tex == NULL) log_err("create texture failed: name: %s: %s", name, SDL_GetError());
-
-    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
-
-    texs[texs_len++] = tex;
-
-    SDL_DestroySurface(surf);
+    return texture_new(dir, renderer, SDL_SCALEMODE_NEAREST);
 }
-
-enum {
-    TEX_PLAYER = 0,
-    TEX_ENEMY,
-    TEX_VFX,
-};
 
 Vec2 player_input = {0};
 Vec2 player_pos = {0};
@@ -72,17 +54,12 @@ int main() {
     last_keyb_state = arena_alloc(&global_ar, numkeys, 1);
     }
 
-    { // tex
-    const size_t MAX_TEX = 16;
-    texs = arena_alloc(&global_ar, MAX_TEX * sizeof(SDL_Texture *), alignof(SDL_Texture *));
-    register_tex("img_player");
-    register_tex("img_enemy");
-    register_tex("img_vfx");
-    }
+    texture_init(128);
+    Texture *tex = texture_new_help("img_player");
 
     sprite_init(1024);
     SDL_FRect srect = {0, 0, 20, 20};
-    Sprite *sprite = sprite_new(texs[0], &srect);
+    Sprite *sprite = sprite_new(tex->tex, &srect);
 
     draw_init(1024, 2, 2);
     DrawerAndHook dh = draw_new(sprite, NULL);
