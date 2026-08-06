@@ -8,19 +8,6 @@ execute_process(
 )
 
 # SDL
-if(NOT IS_DIRECTORY ${VENDOR_DIR}/sdl)
-    execute_process(
-        COMMAND bash -c [[
-        set -e
-            git clone --depth 1 --branch release-3.4.12 https://github.com/miaan15/SDL.git sdl
-        ]]
-        WORKING_DIRECTORY ${VENDOR_DIR}
-        RESULT_VARIABLE __RES
-    )
-    if(NOT __RES EQUAL 0)
-        file(REMOVE_RECURSE ${VENDOR_DIR}/sdl)
-    endif()
-endif()
 if(NOT IS_DIRECTORY ${VENDOR_DIR}/sdl/build)
     execute_process(
         COMMAND bash -c [[
@@ -34,11 +21,19 @@ if(NOT IS_DIRECTORY ${VENDOR_DIR}/sdl/build)
         RESULT_VARIABLE __RES
     )
     if(NOT __RES EQUAL 0)
+        message(FATAL_ERROR "Failed build SDL")
         file(REMOVE_RECURSE ${VENDOR_DIR}/sdl/build)
     endif()
+
+    execute_process(
+        COMMAND bash -c [[
+            echo "*" > .gitignore
+        ]]
+        WORKING_DIRECTORY ${VENDOR_DIR}/sdl/build
+    )
 endif()
 
-add_library(SDL STATIC IMPORTED)
+add_library(SDL SHARED IMPORTED)
 set_target_properties(SDL PROPERTIES
     IMPORTED_LOCATION ${VENDOR_DIR}/sdl/build/libSDL3.so
 )
