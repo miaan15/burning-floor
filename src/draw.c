@@ -46,7 +46,7 @@ SDL_Texture *texture_new(const char *path, SDL_Renderer *renderer, SDL_ScaleMode
     SDL_Texture **ptr = &textures[texture_len++];
     *ptr = tex;
 
-    log_debug("New Texture %zu [%p]: dir: %s, scale mode: %d; size: %d %d",
+    log_debug("New Texture [%zu][%p]: dir: %s, scale mode: %d; size: %d %d",
             ptr - textures, ptr, path, scalemode, tex->w, tex->h);
 
     SDL_DestroySurface(surf);
@@ -81,7 +81,7 @@ Sprite *sprite_new(SDL_Texture *tex, SDL_FRect *srect) {
     Sprite *ptr = &sprites[sprite_len++];
     *ptr = (Sprite){ tex, *srect };
 
-    log_debug("New Sprite %zu [%p]: tex: %p, srect: %.0f %.0f %.0f %.0f",
+    log_debug("New Sprite [%zu][%p]: tex: [%p], srect: %.0f %.0f %.0f %.0f",
             (ptr - sprites), ptr, tex, srect->x, srect->y, srect->w, srect->h);
 
     return ptr;
@@ -128,7 +128,7 @@ size_t draw_new(Sprite *sprite, SDL_FRect *scr_rect) {
 
     assert(di == hi);
 
-    log_debug("New Drawer %zu: sprite: %p", di, sprite);
+    log_debug("New Drawer [%zu]: sprite: [%zu][%p]", di, sprite - sprites, sprite);
 
     return di;
 }
@@ -136,7 +136,7 @@ size_t draw_new(Sprite *sprite, SDL_FRect *scr_rect) {
 
 Drawer *draw_drawer_ptr(size_t idx) {
     if (unlikely(!pool_alive(&draw_sys.drawer_pool, idx))) {
-        log_err("draw_drawer_ptr(): try to call the dead with %zu => stub", idx);
+        log_err("draw_drawer_ptr(): try to call the dead with [%zu] => stub", idx);
         return drawer_stub;
     }
     return (Drawer *)pool_ptr(&draw_sys.drawer_pool, idx);
@@ -144,7 +144,7 @@ Drawer *draw_drawer_ptr(size_t idx) {
 
 DrawerHook *draw_hook_ptr(size_t idx) {
     if (unlikely(!pool_alive(&draw_sys.hook_pool, idx))) {
-        log_err("draw_hook_ptr(): try to call the dead with %zu => stub", idx);
+        log_err("draw_hook_ptr(): try to call the dead with [%zu] => stub", idx);
         return drawer_hook_stub;
     }
     return (DrawerHook *)pool_ptr(&draw_sys.hook_pool, idx);
