@@ -26,7 +26,7 @@ uint64_t tick_delta_ms = 20;
 float tick_alpha = 0;
 bool tick_flag = false;
 
-Texture *texture_new_help(const char *name) {
+SDL_Texture *texture_new_help(const char *name) {
     char dir[128] = _ROOT_DIR "/asset/img/";
     strcat(dir, name);
     const char *ex = ".png";
@@ -55,16 +55,17 @@ int main() {
     }
 
     texture_init(128);
-    Texture *tex = texture_new_help("img_player");
+    SDL_Texture *tex = texture_new_help("img_player");
 
     sprite_init(1024);
     SDL_FRect srect = {0, 0, 20, 20};
-    Sprite *sprite = sprite_new(tex->tex, &srect);
+    Sprite *sprite = sprite_new(tex, &srect);
 
     draw_init(1024, 2, 2);
-    DrawerAndHook dh = draw_new(sprite, NULL);
-    dh.hook->active = true;
-    dh.hook->pos = &player_pos;
+    size_t drawer = draw_new(sprite, NULL);
+    DrawerHook *hook_ptr = draw_hook_ptr(drawer);
+    hook_ptr->active = true;
+    hook_ptr->pos = &player_pos;
 
     uint64_t last_time_ms = 0;
     uint64_t accml_time_ms = 0;

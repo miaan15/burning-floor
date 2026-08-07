@@ -50,16 +50,15 @@ void pool_destroy(Pool *po) {
     memset(po, 0, sizeof(Pool));
 }
 
-void *pool_new(Pool *po, void *data) {
+size_t pool_new(Pool *po, void *data) {
     assert(po->raw);
 
     if (unlikely(po->cnt >= po->cap)) {
-        log_err("pool_new(): pool full => return NULL");
-        return NULL;
+        log_err("pool_new(): pool full => return -1");
+        return (size_t)-1;
     }
 
     size_t i = po->head;
-    void *ptr = (char *)po->raw + (i * po->esize);
 
     if (i == po->maxi) {
         ++po->maxi;
@@ -71,41 +70,42 @@ void *pool_new(Pool *po, void *data) {
     po->meta[i] = (size_t)-1;
     ++po->cnt;
 
+    void *ptr = (char *)po->raw + (i * po->esize);
     if (data) {
         memcpy(ptr, data, po->esize);
     } else {
         memset(ptr, 0, po->esize);
     }
 
-    return ptr;
+    return i;
 }
 
-bool pool_remv(Pool *po, void *ptr) {
+bool pool_remv(Pool *po, size_t idx) {
     assert(po->raw);
 
-    size_t idx = pool_index(po, ptr);
     if (unlikely(idx >= po->maxi || po->meta[idx] != (size_t)-1)) {
         return false;
     }
 
-    po->meta[idx] = po->head;
-    po->head = idx;
-
-    memset(ptr, 0, po->esize);
-
-    --po->cnt;
+    pool_remv_uc(po, idx);
 
     return true;
 }
 
-bool pool_alive(Pool *po, void *ptr) {
+void pool_remv_uc(Pool *po, size_t idx) {
     assert(po->raw);
+    assert(idx < po->maxi);
 
-    size_t idx = pool_index(po, ptr);
-    return idx < po->maxi && po->meta[idx] == (size_t)-1;
+    po->meta[idx] = po->head;
+    po->head = idx;
+
+    void *ptr = (char *)po->raw + (idx * po->esize);
+    memset(ptr, 0, po->esize);
+
+    --po->cnt;
 }
 
-bool pool_alive_idx(Pool *po, size_t idx) {
+bool pool_alive(Pool *po, size_t idx) {
     assert(po->raw);
     return idx < po->maxi && po->meta[idx] == (size_t)-1;
 }
