@@ -1,6 +1,6 @@
 #include "context.h"
-#include "log.h"
 #include "draw.h"
+#include "draw_resource.h"
 #include <SDL3/SDL.h>
 #include <stdalign.h>
 #include <stdint.h>
@@ -26,7 +26,7 @@ uint64_t tick_delta_ms = 20;
 float tick_alpha = 0;
 bool tick_flag = false;
 
-SDL_Texture *texture_new_help(const char *name) {
+u32 texture_new_help(const char *name) {
     char dir[128] = _ROOT_DIR "/asset/img/";
     strcat(dir, name);
     const char *ex = ".png";
@@ -37,6 +37,11 @@ SDL_Texture *texture_new_help(const char *name) {
 
 Vec2 player_input = {0};
 Vec2 player_pos = {0};
+u32 player_sprite = 0;
+
+void update();
+void frame_update();
+void render_update();
 
 int main() {
     if (!SDL_Init(SDL_INIT_VIDEO)) { return 1; }
@@ -55,17 +60,13 @@ int main() {
     }
 
     texture_init(128);
-    SDL_Texture *tex = texture_new_help("img_player");
+    u32 tex = texture_new_help("img_player");
 
     sprite_init(1024);
     SDL_FRect srect = {0, 0, 20, 20};
-    Sprite *sprite = sprite_new(tex, &srect);
+    player_sprite = sprite_new(tex, &srect);
 
-    draw_init(1024, 2, 2);
-    size_t drawer = draw_new(sprite, NULL);
-    DrawerHook *hook_ptr = draw_hook_ptr(drawer);
-    hook_ptr->active = true;
-    hook_ptr->pos = &player_pos;
+    draw_init(1024);
 
     uint64_t last_time_ms = 0;
     uint64_t accml_time_ms = 0;
@@ -107,16 +108,17 @@ int main() {
             accml_time_ms -= tick_delta_ms;
             tick_flag = true;
 
-            Vec2 move_delta = {0}; vec2_scale(&move_delta, player_input, tick_delta_ms);
-            vec2_add(&player_pos, player_pos, move_delta);
+            update();
         }
         tick_alpha = (float)accml_time_ms / (float)tick_delta_ms;
+
+        frame_update();
 
         // render
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        draw_update();
+        render_update();
         draw();
 
         SDL_RenderPresent(renderer);
@@ -133,4 +135,17 @@ END:
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+}
+
+void update() {
+    Vec2 move_delta = {0}; vec2_scale(&move_delta, player_input, tick_delta_ms);
+    vec2_add(&player_pos, player_pos, move_delta);
+}
+
+void frame_update() {
+
+}
+
+void render_update() {
+    draw_sprite_wpos(player_sprite, player_pos, 0, (Vec2){.5, .5}, (Vec2){4, 4});
 }

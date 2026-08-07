@@ -5,12 +5,18 @@
 
 typedef union {
     struct { float x, y; };
+    struct { float w, h; };
     float raw[2];
 } Vec2;
 
 static inline void vec2_add(Vec2 *d, Vec2 a, Vec2 b) {
     d->x = a.x + b.x;
     d->y = a.y + b.y;
+}
+
+static inline void vec2_sub(Vec2 *d, Vec2 a, Vec2 b) {
+    d->x = a.x - b.x;
+    d->y = a.y - b.y;
 }
 
 static inline void vec2_scale(Vec2 *d, Vec2 a, float s) {
