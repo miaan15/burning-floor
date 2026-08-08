@@ -15,5 +15,6 @@ static inline size_t align_up(size_t base, size_t align) {
     return (base + align - 1) & ~(align - 1);
 }
 
+typedef uint8_t u8;
 typedef uint32_t u32;
 typedef uint64_t u64;

@@ -4,7 +4,9 @@
 #include "math/vec.h"
 
 typedef struct {
+    u64 tag;
     Vec2 pos;
+    Vec2 bounds;
 } Entity;
 
 extern Pool entity_pool;

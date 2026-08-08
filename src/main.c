@@ -4,6 +4,7 @@
 #include "enemy.h"
 #include "entity.h"
 #include "log.h"
+#include <assert.h>
 #include <math.h>
 #include <SDL3/SDL.h>
 #include <stdalign.h>
@@ -37,6 +38,15 @@ u32 texture_new_help(const char *name) {
     strcat(dir, ex);
 
     return texture_new(dir, renderer, SDL_SCALEMODE_NEAREST);
+}
+
+bool HasFRectIntersection(const SDL_FRect* a, const SDL_FRect* b) {
+    if (!a || !b) return false;
+
+    return (a->x < b->x + b->w) &&
+           (a->x + a->w > b->x) &&
+           (a->y < b->y + b->h) &&
+           (a->y + a->h > b->y);
 }
 
 u32 player_entity = 0;
@@ -87,7 +97,7 @@ void setup() {
     SDL_FRect srect = {0, 0, 20, 20};
 
     // Draw
-    draw_init(1024);
+    draw_init(1024, 128);
 
     // Entity
     entity_init(1024);
@@ -106,13 +116,13 @@ void setup() {
 
     EnemySlime slime;
     Entity slime_ett;
-    slime_ett = (Entity){ (Vec2){ 10, 10 } };
+    slime_ett = (Entity){ 0b1, (Vec2){ 10, 10 }, (Vec2){50, 50} };
     slime = (EnemySlime){ entity_new(&slime_ett), player_entity };
     enemy_slime_new(&slime);
-    slime_ett = (Entity){ (Vec2){ 300, 100 } };
+    slime_ett = (Entity){ 0b1, (Vec2){ 100, 100 }, (Vec2){50, 50} };
     slime = (EnemySlime){ entity_new(&slime_ett), player_entity };
     enemy_slime_new(&slime);
-    slime_ett = (Entity){ (Vec2){ 600, 400 } };
+    slime_ett = (Entity){ 0b1, (Vec2){ 300, 500 }, (Vec2){50, 50} };
     slime = (EnemySlime){ entity_new(&slime_ett), player_entity };
     enemy_slime_new(&slime);
 }
@@ -182,7 +192,31 @@ void update() {
     Vec2 move_delta; vec2_scale(&move_delta, player_move_dir, player_move_speed * tick_delta_ms);
 
     if (player_just_atk) { }
-    if (player_atking) { }
+    if (player_atking) {
+        Vec2 *player_pos = &entity_ptr(player_entity)->pos;
+        Vec2 atk_dir = { 1, 0 };
+        if (player_atk_dir == 1) atk_dir = (Vec2){ -1,  0 };
+        if (player_atk_dir == 2) atk_dir = (Vec2){  0,  1 };
+        if (player_atk_dir == 3) atk_dir = (Vec2){  0, -1 };
+        Vec2 atk_hitbox_pos = { player_pos->x + atk_dir.x * 100, player_pos->y + atk_dir.y * 100};
+        Vec2 atk_hitbox_size = { 100 + fabs(atk_dir.x) * 100, 100 + fabs(atk_dir.y) * 100 };
+        SDL_FRect hitbox_rect = { atk_hitbox_pos.x - atk_hitbox_size.x / 2,
+                                  atk_hitbox_pos.y - atk_hitbox_size.y / 2,
+                                  atk_hitbox_size.x, atk_hitbox_size.y };
+
+        for (size_t i = 0; i < entity_pool.maxi; ++i) {
+            Entity *entity = (Entity *)pool_ptr(&entity_pool, i);
+            if (!entity->tag) continue;
+
+            SDL_FRect rect = { entity->pos.x - entity->bounds.x / 2,
+                               entity->pos.y - entity->bounds.y / 2,
+                               entity->bounds.x, entity->bounds.y };
+
+            if (HasFRectIntersection(&hitbox_rect, &rect)) {
+                log_info("Hitted [%zu]", i);
+            }
+        }
+    }
 
     if (player_dashing) {
         vec2_scale(&move_delta, player_dash_dir, player_dash_speed * tick_delta_ms);
@@ -206,6 +240,17 @@ void render_update() {
     Vec2 *player_pos = &entity_ptr(player_entity)->pos;
     draw_sprite_wpos(player_sprite, *player_pos, 0, (Vec2){.5, .5}, (Vec2){4, 4});
     enemy_slime_draw();
+
+    if (player_atking) {
+        Vec2 atk_dir = { 1, 0 };
+        if (player_atk_dir == 1) atk_dir = (Vec2){ -1,  0 };
+        if (player_atk_dir == 2) atk_dir = (Vec2){  0,  1 };
+        if (player_atk_dir == 3) atk_dir = (Vec2){  0, -1 };
+        Vec2 atk_hitbox_pos = { player_pos->x + atk_dir.x * 100, player_pos->y + atk_dir.y * 100};
+        Vec2 atk_hitbox_size = { 100 + fabs(atk_dir.x) * 100, 100 + fabs(atk_dir.y) * 100 };
+
+        draw_rect_wpos(atk_hitbox_pos, atk_hitbox_size, (Vec2){.5, .5}, 255, 0, 0, 255);
+    }
 }
 
 int main() {
@@ -266,6 +311,7 @@ int main() {
         SDL_RenderClear(renderer);
 
         render_update();
+
         draw();
 
         SDL_RenderPresent(renderer);

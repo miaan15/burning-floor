@@ -11,12 +11,22 @@ Drawer *drawers_raw = NULL;
 DrawerMeta *drawer_metas_raw = NULL;
 size_t drawers_len = 0;
 
-void draw_init(size_t cap) {
+RectDrawer *rect_drawers_raw = NULL;
+RectDrawerMeta *rect_drawer_metas_raw = NULL;
+size_t rect_drawers_len = 0;
+
+void draw_init(size_t cap, size_t rect_cap) {
     drawers_raw =
         (Drawer *)arena_alloc(&global_ar, cap * sizeof(Drawer), alignof(Drawer));
     drawer_metas_raw =
         (DrawerMeta *)arena_alloc(&global_ar, cap * sizeof(DrawerMeta), alignof(DrawerMeta));
     drawers_len = 0;
+
+    rect_drawers_raw =
+        (RectDrawer *)arena_alloc(&global_ar, rect_cap * sizeof(RectDrawer), alignof(RectDrawer));
+    rect_drawer_metas_raw =
+        (RectDrawerMeta *)arena_alloc(&global_ar, rect_cap * sizeof(RectDrawerMeta), alignof(RectDrawerMeta));
+    rect_drawers_len = 0;
 }
 
 void draw_sprite_wpos(uint32_t sprite, Vec2 pos, int8_t z, Vec2 center, Vec2 scale) {
@@ -40,6 +50,23 @@ void draw_sprite_wpos(uint32_t sprite, Vec2 pos, int8_t z, Vec2 center, Vec2 sca
     };
 }
 
+void draw_rect_wpos(Vec2 pos, Vec2 size, Vec2 center, u8 r, u8 g, u8 b, u8 a) {
+    RectDrawer *drawer = &rect_drawers_raw[rect_drawers_len];
+    RectDrawerMeta *meta = &rect_drawer_metas_raw[rect_drawers_len];
+    ++rect_drawers_len;
+
+    drawer->rect = (SDL_FRect) {
+        .x = pos.x - (size.x * center.x),
+        .y = window_h - (pos.y + (size.y * (1 - center.y))),
+        .w = size.x,
+        .h = size.y
+    };
+    drawer->r = r;
+    drawer->g = g;
+    drawer->b = b;
+    drawer->a = a;
+}
+
 void draw() {
     // FIXME make the drawers sort by z -> tex -> ...
     for (size_t i = 0; i < drawers_len; ++i) {
@@ -48,4 +75,12 @@ void draw() {
     }
 
     drawers_len = 0;
+
+    for (size_t i = 0; i < rect_drawers_len; ++i) {
+        RectDrawer rect_drawer = rect_drawers_raw[i];
+        SDL_SetRenderDrawColor(renderer, rect_drawer.r, rect_drawer.g, rect_drawer.b, rect_drawer.a);
+        SDL_RenderRect(renderer, &rect_drawer.rect);
+    }
+
+    rect_drawers_len = 0;
 }
