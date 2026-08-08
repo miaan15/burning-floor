@@ -1,6 +1,7 @@
 #include "enemy.h"
 
 #include "draw.h"
+#include "entity.h"
 #include "log.h"
 #include <stdalign.h>
 #include <context.h>
@@ -29,8 +30,7 @@ u32 enemy_slime_new(EnemySlime *data) {
     u32 slime = pool_new(&enemy_slime_pool, data);
     if (slime == (u32)-1) log_err("enemy_slime_new(): ");
 
-    log_debug("Create EnemySlime [%u]: pos = %.1f %.1f",
-            slime, data->pos.x, data->pos.y);
+    log_debug("Create EnemySlime [%u]: entity = [%u]", slime, data->entity);
 
     return slime;
 }
@@ -38,9 +38,18 @@ u32 enemy_slime_new(EnemySlime *data) {
 void enemy_slime_update() {
     for (size_t i = 0; i < enemy_slime_pool.maxi; ++i) {
         if (!pool_alive(&enemy_slime_pool, i)) continue;
+
         EnemySlime *slime = pool_ptr(&enemy_slime_pool, i);
 
-        slime->pos.y += enemy_slime_move_speed * tick_delta_ms;
+        Entity *slime_ett = entity_ptr(slime->entity);
+        Vec2 *slime_pos = &slime_ett->pos;
+        Vec2 target_pos = entity_ptr(slime->target)->pos;
+
+        Vec2 move_dir; vec2_sub(&move_dir, target_pos, *slime_pos);
+        vec2_normalize(&move_dir);
+
+        Vec2 move_delta; vec2_scale(&move_delta, move_dir, enemy_slime_move_speed);
+        vec2_add(slime_pos, *slime_pos, move_delta);
     }
 }
 
@@ -49,6 +58,9 @@ void enemy_slime_draw() {
         if (!pool_alive(&enemy_slime_pool, i)) continue;
         EnemySlime *slime = pool_ptr(&enemy_slime_pool, i);
 
-        draw_sprite_wpos(enemy_slime_sprite, slime->pos, 0, (Vec2){.5, .5}, (Vec2){4, 4});
+        Entity slime_ett = *entity_ptr(slime->entity);
+        Vec2 slime_pos = slime_ett.pos;
+
+        draw_sprite_wpos(enemy_slime_sprite, slime_pos, 0, (Vec2){.5, .5}, (Vec2){4, 4});
     }
 }

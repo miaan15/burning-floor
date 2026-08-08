@@ -2,13 +2,14 @@
 
 #include "alloc/arena.h"
 #include "alloc/pool.h"
-#include "math/vec.h"
+#include "macro.h"
 
 extern u32 enemy_slime_sprite;
 extern const float enemy_slime_move_speed;
 
 typedef struct {
-    Vec2 pos;
+    u32 entity;
+    u32 target;
 } EnemySlime;
 
 extern Arena enemy_pools_ar;

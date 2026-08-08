@@ -2,6 +2,7 @@
 #include "draw.h"
 #include "draw_resource.h"
 #include "enemy.h"
+#include "entity.h"
 #include "log.h"
 #include <math.h>
 #include <SDL3/SDL.h>
@@ -38,7 +39,7 @@ u32 texture_new_help(const char *name) {
     return texture_new(dir, renderer, SDL_SCALEMODE_NEAREST);
 }
 
-Vec2 player_pos = {0};
+u32 player_entity = 0;
 u32 player_sprite = 0;
 
 Vec2 player_input = {0};
@@ -84,21 +85,35 @@ void setup() {
     // Sprite
     sprite_init(1024);
     SDL_FRect srect = {0, 0, 20, 20};
-    player_sprite = sprite_new(1, &srect);
-    enemy_slime_sprite = sprite_new(2, &srect);
 
     // Draw
     draw_init(1024);
 
+    // Entity
+    entity_init(1024);
+
+    // Player
+    player_sprite = sprite_new(1, &srect);
+
+    player_entity = entity_new(NULL);
+
     // Enemy
+    enemy_slime_sprite = sprite_new(2, &srect);
+
     enemy_init(1ull << 10 << 10); // 10 mB
+
     enemy_slime_init(128);
 
-    EnemySlime slime = {(Vec2){10, 10}};
+    EnemySlime slime;
+    Entity slime_ett;
+    slime_ett = (Entity){ (Vec2){ 10, 10 } };
+    slime = (EnemySlime){ entity_new(&slime_ett), player_entity };
     enemy_slime_new(&slime);
-    slime = (EnemySlime){(Vec2){100, 100}};
+    slime_ett = (Entity){ (Vec2){ 300, 100 } };
+    slime = (EnemySlime){ entity_new(&slime_ett), player_entity };
     enemy_slime_new(&slime);
-    slime = (EnemySlime){(Vec2){300, 300}};
+    slime_ett = (Entity){ (Vec2){ 600, 400 } };
+    slime = (EnemySlime){ entity_new(&slime_ett), player_entity };
     enemy_slime_new(&slime);
 }
 
@@ -173,7 +188,8 @@ void update() {
         vec2_scale(&move_delta, player_dash_dir, player_dash_speed * tick_delta_ms);
     }
 
-    vec2_add(&player_pos, player_pos, move_delta);
+    Vec2 *player_pos = &entity_ptr(player_entity)->pos;
+    vec2_add(player_pos, *player_pos, move_delta);
 
     // =====================
     player_just_atk = false;
@@ -187,7 +203,8 @@ void frame_update() {
 }
 
 void render_update() {
-    draw_sprite_wpos(player_sprite, player_pos, 0, (Vec2){.5, .5}, (Vec2){4, 4});
+    Vec2 *player_pos = &entity_ptr(player_entity)->pos;
+    draw_sprite_wpos(player_sprite, *player_pos, 0, (Vec2){.5, .5}, (Vec2){4, 4});
     enemy_slime_draw();
 }
 
