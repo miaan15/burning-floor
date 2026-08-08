@@ -1,6 +1,7 @@
 #include "context.h"
 #include "draw.h"
 #include "draw_resource.h"
+#include "enemy.h"
 #include "log.h"
 #include <math.h>
 #include <SDL3/SDL.h>
@@ -77,15 +78,28 @@ void setup() {
 
     // Tex
     texture_init(128);
-    u32 tex = texture_new_help("img_player");
+    texture_new_help("img_player");
+    texture_new_help("img_enemy");
 
     // Sprite
     sprite_init(1024);
     SDL_FRect srect = {0, 0, 20, 20};
-    player_sprite = sprite_new(tex, &srect);
+    player_sprite = sprite_new(1, &srect);
+    enemy_slime_sprite = sprite_new(2, &srect);
 
     // Draw
     draw_init(1024);
+
+    // Enemy
+    enemy_init(1ull << 10 << 10); // 10 mB
+    enemy_slime_init(128);
+
+    EnemySlime slime = {(Vec2){10, 10}};
+    enemy_slime_new(&slime);
+    slime = (EnemySlime){(Vec2){100, 100}};
+    enemy_slime_new(&slime);
+    slime = (EnemySlime){(Vec2){300, 300}};
+    enemy_slime_new(&slime);
 }
 
 void input_update() {
@@ -164,6 +178,8 @@ void update() {
     // =====================
     player_just_atk = false;
     }
+
+    enemy_slime_update();
 }
 
 void frame_update() {
@@ -172,6 +188,7 @@ void frame_update() {
 
 void render_update() {
     draw_sprite_wpos(player_sprite, player_pos, 0, (Vec2){.5, .5}, (Vec2){4, 4});
+    enemy_slime_draw();
 }
 
 int main() {

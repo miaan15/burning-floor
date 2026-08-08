@@ -35,9 +35,3 @@ void *pool_ptr(Pool *po, size_t idx);
 size_t pool_index(Pool *po, void *ptr);
 
 void pool_reset(Pool *po);
-
-#define pool_for(__pool, __idx, __ptr) \
-    for (size_t __i = 0; __i < (__pool)->maxi; ++__i) \
-        if ((__pool)->meta[__i] == (size_t)-1 && \
-            ((__idx = __i)) && \
-            ((__ptr) = (char *)(__pool)->raw + (__i * (__pool)->esize)))

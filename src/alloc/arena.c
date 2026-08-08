@@ -15,6 +15,9 @@ void arena_init(Arena *ar, size_t caps) {
     ar->raw = malloc(caps);
     ar->caps = caps;
     ar->offs = 0;
+
+    log_trace("New Arena from %p to %p: caps = %zu",
+            ar->raw, (char *)ar->raw + ar->caps, caps);
 }
 
 void arena_init_over(Arena *ar, void *root, size_t caps) {
@@ -25,6 +28,9 @@ void arena_init_over(Arena *ar, void *root, size_t caps) {
     ar->raw = root;
     ar->caps = caps;
     ar->offs = 0;
+
+    log_trace("New Arena (over) from %p to %p: caps = %zu",
+            ar->raw, (char *)ar->raw + ar->caps, caps);
 }
 
 void arena_destroy(Arena *ar) {

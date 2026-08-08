@@ -26,6 +26,9 @@ void pool_init(Pool *po, size_t esize, size_t cap) {
 
     po->meta = (size_t *)((char *)po->raw + align_up(cap * esize, sizeof(size_t)));
     memset(po->meta, 0, cap * sizeof(size_t));
+
+    log_trace("New Pool from %p to %p: esize = %zu, cap = %zu",
+            po->raw, (char *)po->raw + caps, po->esize, po->cap);
 }
 
 void pool_init_over(Pool *po, void *root, size_t esize, size_t cap) {
@@ -43,6 +46,9 @@ void pool_init_over(Pool *po, void *root, size_t esize, size_t cap) {
 
     po->meta = (size_t *)((char *)po->raw + align_up(cap * esize, sizeof(size_t)));
     memset(po->meta, 0, cap * sizeof(size_t));
+
+    log_trace("New Pool (over) from %p to %p: esize = %zu, cap = %zu",
+            po->raw, (char *)po->raw + caps, po->esize, po->cap);
 }
 
 void pool_destroy(Pool *po) {
@@ -55,7 +61,7 @@ size_t pool_new(Pool *po, void *data) {
 
     if (unlikely(po->cnt >= po->cap)) {
         log_err("pool_new(): pool full => return -1");
-        return (size_t)-1;
+        return (u32)-1;
     }
 
     size_t i = po->head;
@@ -67,7 +73,7 @@ size_t pool_new(Pool *po, void *data) {
         po->head = po->meta[i];
     }
 
-    po->meta[i] = (size_t)-1;
+    po->meta[i] = (u32)-1;
     ++po->cnt;
 
     void *ptr = (char *)po->raw + (i * po->esize);
@@ -83,7 +89,7 @@ size_t pool_new(Pool *po, void *data) {
 bool pool_remv(Pool *po, size_t idx) {
     assert(po->raw);
 
-    if (unlikely(idx >= po->maxi || po->meta[idx] != (size_t)-1)) {
+    if (unlikely(idx >= po->maxi || po->meta[idx] != (u32)-1)) {
         return false;
     }
 
@@ -107,7 +113,7 @@ void pool_remv_uc(Pool *po, size_t idx) {
 
 bool pool_alive(Pool *po, size_t idx) {
     assert(po->raw);
-    return idx < po->maxi && po->meta[idx] == (size_t)-1;
+    return idx < po->maxi && po->meta[idx] == (u32)-1;
 }
 
 void *pool_ptr(Pool *po, size_t idx) {
