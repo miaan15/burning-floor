@@ -5,14 +5,14 @@
 
 typedef struct {
     u64 tag;
-    Vec2 pos;
-    Vec2 bounds;
-} Entity;
+    vec2 pos;
+    vec2 bounds;
+} entity;
 
-extern Pool entity_pool;
+extern pool entity_pool;
 
 void entity_init(size_t cap);
 
-u32 entity_new(Entity *data);
+size_t entity_new(entity *data);
 
-Entity *entity_ptr(u32 idx);
+entity *entity_ptr(size_t idx);

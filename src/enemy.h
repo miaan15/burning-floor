@@ -4,23 +4,25 @@
 #include "alloc/pool.h"
 #include "macro.h"
 
-extern u32 enemy_slime_sprite;
-extern const float enemy_slime_move_speed;
-
 typedef struct {
     u32 entity;
     u32 target;
-} EnemySlime;
+} slime;
 
-extern Arena enemy_pools_ar;
+extern pool slime_pool;
 
-extern Pool enemy_slime_pool;
+extern size_t slime_sprite;
+extern const float slime_move_speed;
 
-void enemy_init(size_t caps);
+void slime_init(size_t cap);
 
-void enemy_slime_init(size_t cap);
+size_t slime_new(slime *data);
 
-u32 enemy_slime_new(EnemySlime *data);
+void slime_update();
 
-void enemy_slime_update();
-void enemy_slime_draw();
+void slime_draw();
+
+//
+extern arena enemy_pools_ar;
+
+void enemy_init(size_t scap);

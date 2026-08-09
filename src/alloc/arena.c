@@ -7,60 +7,60 @@
 #include <stdalign.h>
 #include <stdlib.h>
 
-void arena_init(Arena *ar, size_t caps) {
-    if (unlikely(ar->raw)) {
-        log_err("arena_init(): arena already initialized");
-        return;
-    }
-    ar->raw = malloc(caps);
-    ar->caps = caps;
+void arena_init(arena *ar, size_t scap) {
+    assert(!ar->raw);
+
+    ar->raw = malloc(scap);
+    ar->scap = scap;
     ar->offs = 0;
 
-    log_trace("New Arena from %p to %p: caps = %zu",
-            ar->raw, (char *)ar->raw + ar->caps, caps);
+    log_trace("New Arena from %p to %p: scap = %zu",
+            ar->raw, (char *)ar->raw + ar->scap, scap);
 }
 
-void arena_init_over(Arena *ar, void *root, size_t caps) {
-    if (unlikely(ar->raw)) {
-        log_err("arena_init_over(): arena already initialized");
-        return;
-    }
+void arena_init_over(arena *ar, void *root, size_t scap) {
+    assert(!ar->raw);
+
     ar->raw = root;
-    ar->caps = caps;
+    ar->scap = scap;
     ar->offs = 0;
 
-    log_trace("New Arena (over) from %p to %p: caps = %zu",
-            ar->raw, (char *)ar->raw + ar->caps, caps);
+    log_trace("New Arena (over) from %p to %p: scap = %zu",
+            ar->raw, (char *)ar->raw + ar->scap, scap);
 }
 
-void arena_destroy(Arena *ar) {
-    if (likely(ar->raw)) free(ar->raw);
-    memset(ar, 0, sizeof(Arena));
+void arena_init_in_arena(arena *ar, arena *root_ar, size_t scap) {
+    assert(!ar->raw);
+
+    ar->raw = arena_alloc(root_ar, scap, alignof(max_align_t));
+    ar->scap = scap;
+    ar->offs = 0;
+
+    log_trace("New Arena (in arena) from %p to %p: scap = %zu",
+            ar->raw, (char *)ar->raw + ar->scap, scap);
 }
 
-void *arena_alloc_raw(Arena *ar, size_t size, size_t align) {
+void arena_destroy(arena *ar) {
+    if (ar->raw) free(ar->raw);
+    memset(ar, 0, sizeof(arena));
+}
+
+void *arena_alloc(arena *ar, size_t size, size_t align) {
     assert(ar->raw);
 
-    size_t _offs = align_up(ar->offs, align);
+    size_t offs = align_up(ar->offs, align);
 
-    if (unlikely(_offs + size > ar->caps)) {
-        log_err("arena_alloc(): alloc too much -> return NULL");
+    if (offs + size > ar->scap) {
+        log_err("arena_alloc(): alloc too much -> NULL");
         return NULL;
     }
 
-    ar->offs = _offs + size;
+    ar->offs = offs + size;
 
-    return (char *)ar->raw + _offs;
+    return (char *)ar->raw + offs;
 }
 
-void *arena_alloc(Arena *ar, size_t size, size_t align) {
-    void *ptr = arena_alloc_raw(ar, size, align);
-    if (unlikely(!ptr)) return NULL;
-    memset(ptr, 0, size);
-    return ptr;
-}
-
-void arena_reset(Arena *ar) {
+void arena_reset(arena *ar) {
     assert(ar->raw);
     ar->offs = 0;
 }

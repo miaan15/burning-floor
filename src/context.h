@@ -9,7 +9,7 @@ extern SDL_Renderer *renderer;
 
 extern int window_w, window_h;
 
-extern Arena global_ar;
+extern arena global_ar;
 
 extern const bool *keyb_state;
 extern bool *last_keyb_state;

@@ -1,5 +1,8 @@
 #pragma once
 
+#include "arena.h"
+#include "macro.h"
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -11,27 +14,28 @@ typedef struct {
     size_t cap;
 
     size_t head;
-    size_t maxi;
+    size_t len;
     size_t cnt;
 
-    size_t *meta;
-} Pool;
+    bool *alives;
+} pool;
 
-size_t pool_caps(size_t esize, size_t cap);
+static inline size_t pool_esize(size_t esize) { return MAX(esize, sizeof(size_t)); }
+static inline size_t pool_ealign(size_t ealign) { return MAX(ealign, alignof(size_t)); }
+size_t pool_scap(size_t esize, size_t cap);
 
-void pool_init(Pool *po, size_t esize, size_t cap);
-void pool_init_over(Pool *po, void *root, size_t esize, size_t cap);
+void pool_init(pool *po, size_t esize, size_t cap);
+void pool_init_over(pool *po, void *root, size_t esize, size_t cap);
+void pool_init_in_arena(pool *po, arena *arena, size_t esize, size_t ealign, size_t cap);
 
-void pool_destroy(Pool *po);
+void pool_destroy(pool *po);
 
-size_t pool_new(Pool *po, void *data);
+size_t pool_new(pool *po, void *data);
 
-bool pool_remv(Pool *po, size_t idx);
-void pool_remv_uc(Pool *po, size_t idx);
+bool pool_remv(pool *po, size_t idx);
 
-bool pool_alive(Pool *po, size_t idx);
+bool pool_alive(pool *po, size_t idx);
 
-void *pool_ptr(Pool *po, size_t idx);
-size_t pool_index(Pool *po, void *ptr);
+void *pool_ptr(pool *po, size_t idx);
 
-void pool_reset(Pool *po);
+void pool_reset(pool *po);

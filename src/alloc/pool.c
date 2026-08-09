@@ -1,137 +1,122 @@
 #include "pool.h"
 
-#include "macro.h"
 #include "log.h"
 #include <assert.h>
 #include <string.h>
 #include <stdalign.h>
 #include <stdlib.h>
 
-size_t pool_caps(size_t esize, size_t cap) {
-    return align_up(cap * esize, sizeof(size_t)) + (cap * sizeof(size_t));
+size_t pool_scap(size_t esize, size_t cap) {
+    return cap * esize + cap;
 }
 
-void pool_init(Pool *po, size_t esize, size_t cap) {
-    if (unlikely(po->raw)) {
-        log_err("pool_init(): pool already initialized");
-        return;
-    }
+void pool_init(pool *po, size_t esize, size_t cap) {
+    assert(!po->raw);
 
-    size_t caps = pool_caps(esize, cap);
+    esize = pool_esize(esize);
+    size_t scap = pool_scap(esize, cap);
 
     po->esize = esize;
-    po->raw = malloc(caps);
+    po->raw = malloc(scap);
     po->cap = cap;
-    po->head = po->maxi = po->cnt = 0;
-
-    po->meta = (size_t *)((char *)po->raw + align_up(cap * esize, sizeof(size_t)));
-    memset(po->meta, 0, cap * sizeof(size_t));
+    po->head = po->len = po->cnt = 0;
+    po->alives = (bool *)((char *)po->raw + cap * esize);
+    memset(po->alives, 0, cap);
 
     log_trace("New Pool from %p to %p: esize = %zu, cap = %zu",
-            po->raw, (char *)po->raw + caps, po->esize, po->cap);
+            po->raw, (char *)po->raw + scap, po->esize, po->cap);
 }
 
-void pool_init_over(Pool *po, void *root, size_t esize, size_t cap) {
-    if (unlikely(po->raw)) {
-        log_err("pool_init(): pool already initialized");
-        return;
-    }
+void pool_init_over(pool *po, void *root, size_t esize, size_t cap) {
+    assert(!po->raw);
 
-    size_t caps = pool_caps(esize, cap);
+    esize = pool_esize(esize);
+    size_t scap = pool_scap(esize, cap);
 
     po->esize = esize;
     po->raw = root;
     po->cap = cap;
-    po->head = po->maxi = po->cnt = 0;
-
-    po->meta = (size_t *)((char *)po->raw + align_up(cap * esize, sizeof(size_t)));
-    memset(po->meta, 0, cap * sizeof(size_t));
+    po->head = po->len = po->cnt = 0;
+    po->alives = (bool *)((char *)po->raw + cap * esize);
 
     log_trace("New Pool (over) from %p to %p: esize = %zu, cap = %zu",
-            po->raw, (char *)po->raw + caps, po->esize, po->cap);
+            po->raw, (char *)po->raw + scap, po->esize, po->cap);
 }
 
-void pool_destroy(Pool *po) {
+void pool_init_in_arena(pool *po, arena *arena, size_t esize, size_t ealign, size_t cap) {
+    assert(!po->raw);
+
+    esize = pool_esize(esize);
+    ealign = pool_ealign(ealign);
+    size_t scap = pool_scap(esize, cap);
+
+    po->esize = esize;
+    po->raw = arena_alloc(arena, scap, ealign);
+    po->cap = cap;
+    po->head = po->len = po->cnt = 0;
+    po->alives = (bool *)((char *)po->raw + cap * esize);
+
+    log_trace("New Pool (in arena) from %p to %p: esize = %zu, cap = %zu",
+            po->raw, (char *)po->raw + scap, po->esize, po->cap);
+}
+
+void pool_destroy(pool *po) {
     if (po->raw) free(po->raw);
-    memset(po, 0, sizeof(Pool));
+    memset(po, 0, sizeof(pool));
 }
 
-size_t pool_new(Pool *po, void *data) {
+size_t pool_new(pool *po, void *data) {
     assert(po->raw);
 
-    if (unlikely(po->cnt >= po->cap)) {
-        log_err("pool_new(): pool full => return -1");
-        return (u32)-1;
+    if (po->len >= po->cap) {
+        log_err("pool_new(): too much => 0");
+        return 0;
     }
 
-    size_t i = po->head;
+    size_t idx = po->head;
 
-    if (i == po->maxi) {
-        ++po->maxi;
+    if (idx == po->len) {
+        ++po->len;
         ++po->head;
     } else {
-        po->head = po->meta[i];
+        po->head = *(size_t *)((char *)po->raw + idx * po->esize);
     }
 
-    po->meta[i] = (u32)-1;
+    po->alives[idx] = true;
     ++po->cnt;
 
-    void *ptr = (char *)po->raw + (i * po->esize);
-    if (data) {
-        memcpy(ptr, data, po->esize);
-    } else {
-        memset(ptr, 0, po->esize);
-    }
+    void *ptr = (char *)po->raw + (idx * po->esize);
+    if (data) memcpy(ptr, data, po->esize);
+    else memset(ptr, 0, po->esize);
 
-    return i;
+    return idx;
 }
 
-bool pool_remv(Pool *po, size_t idx) {
+bool pool_remv(pool *po, size_t idx) {
     assert(po->raw);
 
-    if (unlikely(idx >= po->maxi || po->meta[idx] != (u32)-1)) {
-        return false;
-    }
+    if (!pool_alive(po, idx)) return false;
 
-    pool_remv_uc(po, idx);
+    *(size_t *)((char *)po->raw + idx * po->esize) = po->head;
+    po->alives[idx] = false;
+
+    po->head = idx;
 
     return true;
 }
 
-void pool_remv_uc(Pool *po, size_t idx) {
+bool pool_alive(pool *po, size_t idx) {
     assert(po->raw);
-    assert(idx < po->maxi);
-
-    po->meta[idx] = po->head;
-    po->head = idx;
-
-    void *ptr = (char *)po->raw + (idx * po->esize);
-    memset(ptr, 0, po->esize);
-
-    --po->cnt;
+    return idx < po->len && po->alives[idx];
 }
 
-bool pool_alive(Pool *po, size_t idx) {
+void *pool_ptr(pool *po, size_t idx) {
     assert(po->raw);
-    return idx < po->maxi && po->meta[idx] == (u32)-1;
-}
-
-void *pool_ptr(Pool *po, size_t idx) {
-    assert(po->raw);
-    assert(idx < po->maxi);
+    assert(idx < po->len);
     return (char *)po->raw + (idx * po->esize);
 }
 
-size_t pool_index(Pool *po, void *data) {
+void pool_reset(pool *po) {
     assert(po->raw);
-    assert((char *)data >= (char *)po->raw);
-    assert(po->maxi > 0 && (char *)data <= (char *)po->raw + ((po->maxi - 1) * po->esize));
-    assert(((char *)data - (char *)po->raw) % po->esize == 0);
-    return ((char *)data - (char *)po->raw) / po->esize;
-}
-
-void pool_reset(Pool *po) {
-    assert(po->raw);
-    memset(po->meta, 0, po->cap * sizeof(size_t));
-    po->head = po->maxi = po->cnt = 0;
+    po->head = po->len = po->cnt = 0;
 }
