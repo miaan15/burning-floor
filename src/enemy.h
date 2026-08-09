@@ -18,6 +18,8 @@ void slime_init(size_t cap);
 
 size_t slime_new(slime *data);
 
+bool slime_remv(size_t idx);
+
 void slime_update();
 
 void slime_draw();

@@ -62,6 +62,7 @@ const float player_atk_dur = .3;
 const float player_dash_speed = 3;
 const float player_dash_cd = 1;
 const float player_dash_dur = .05;
+const float player_atk_damage = 1;
 
 vec2 player_move_dir = {0};
 vec2 player_move_dir_nozero = {0};
@@ -116,13 +117,13 @@ void setup() {
 
     slime s;
     entity s_ett;
-    s_ett = (entity){ 0b1, (vec2){ 10, 10 }, (vec2){50, 50} };
+    s_ett = (entity){ 0b1, (vec2){ 10, 10 }, (vec2){50, 50}, 36 };
     s = (slime){ entity_new(&s_ett), player_entity };
     slime_new(&s);
-    s_ett = (entity){ 0b1, (vec2){ 100, 100 }, (vec2){50, 50} };
+    s_ett = (entity){ 0b1, (vec2){ 100, 100 }, (vec2){50, 50}, 36 };
     s = (slime){ entity_new(&s_ett), player_entity };
     slime_new(&s);
-    s_ett = (entity){ 0b1, (vec2){ 300, 500 }, (vec2){50, 50} };
+    s_ett = (entity){ 0b1, (vec2){ 300, 500 }, (vec2){50, 50}, 10 };
     s = (slime){ entity_new(&s_ett), player_entity };
     slime_new(&s);
 }
@@ -205,6 +206,8 @@ void update() {
                                   atk_hitbox_size.x, atk_hitbox_size.y };
 
         for (size_t i = 0; i < entity_pool.len; ++i) {
+            if (!pool_alive(&entity_pool, i)) continue;
+
             entity *entity = entity_ptr(i);
             if (!entity->tag) continue;
 
@@ -213,7 +216,7 @@ void update() {
                                entity->bounds.x, entity->bounds.y };
 
             if (HasFRectIntersection(&hitbox_rect, &rect)) {
-                log_info("Hitted [%zu]", i);
+                entity->health -= player_atk_damage;
             }
         }
     }
