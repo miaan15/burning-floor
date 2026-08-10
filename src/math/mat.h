@@ -1,11 +1,12 @@
 #pragma once
 
+#include "macro.h"
 #include <stdbool.h>
 
 typedef union {
-    struct { float x, y, w, h; };
-    float raw[4];
-    float table[2][2];
+    struct { f32 x, y, w, h; };
+    f32 raw[4];
+    f32 table[2][2];
 } mat2;
 
 typedef mat2 rect;

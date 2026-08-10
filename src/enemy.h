@@ -12,7 +12,7 @@ typedef struct {
 extern pool slime_pool;
 
 extern size_t slime_sprite;
-extern const float slime_move_speed;
+extern const f32 slime_move_speed;
 
 void slime_init(size_t cap);
 

@@ -24,14 +24,14 @@ arena *tick_arena = NULL;
 const bool *keyb_state = NULL;
 bool *last_keyb_state = NULL;
 
-uint64_t time_ms = 0;
-uint64_t deltatime_ms = 0;
-float time_s = 0;
-float deltatime_s = 0;
+u32 time_ms = 0;
+u32 deltatime_ms = 0;
+f32 time_s = 0;
+f32 deltatime_s = 0;
 
-uint64_t ticks_cnt = 0;
-uint64_t tick_delta_ms = 20;
-float tick_alpha = 0;
+u32 ticks_cnt = 0;
+u32 tick_delta_ms = 20;
+f32 tick_alpha = 0;
 bool tick_flag = false;
 
 u32 texture_new_help(const char *name) {
@@ -59,13 +59,13 @@ vec2 player_input = {0};
 vec2 player_atk_input = {0};
 bool player_dash_input = false;
 
-const float player_move_speed = 1;
-const float player_atk_cd = 1;
-const float player_atk_dur = .3;
-const float player_dash_speed = 3;
-const float player_dash_cd = 1;
-const float player_dash_dur = .05;
-const float player_atk_damage = 10;
+const f32 player_move_speed = 1;
+const f32 player_atk_cd = 1;
+const f32 player_atk_dur = .3;
+const f32 player_dash_speed = 3;
+const f32 player_dash_cd = 1;
+const f32 player_dash_dur = .05;
+const f32 player_atk_damage = 10;
 
 vec2 player_move_dir = {0};
 vec2 player_move_dir_nozero = {0};
@@ -74,7 +74,7 @@ bool player_atk_able = false;
 bool player_atking = false;
 bool player_just_atk = false;
 char player_atk_dir = 0; // RLUD
-float player_atk_timest = -1000;
+f32 player_atk_timest = -1000;
 u32 *player_atk_hitted_etts = 0;
 size_t player_atk_hitted_etts_cap = 10;
 size_t player_atk_hitted_etts_len = 0;
@@ -83,7 +83,7 @@ bool player_dash_able = false;
 bool player_dashing = false;
 bool player_just_dash = false;
 vec2 player_dash_dir = {0};
-float player_dash_timest = -1000;
+f32 player_dash_timest = -1000;
 
 void setup() {
     arena_init(&omni_arena, 100ull << 10 << 10); // 100mB
@@ -293,15 +293,15 @@ int main() {
 
     setup();
 
-    uint64_t last_time_ms = 0;
-    uint64_t accml_time_ms = 0;
+    u32 last_time_ms = 0;
+    u32 accml_time_ms = 0;
     while (true) {
         time_ms = SDL_GetTicks();
         deltatime_ms = time_ms - last_time_ms;
         last_time_ms = time_ms;
 
-        time_s = (float)time_ms / 1000.0f;
-        deltatime_s = (float)deltatime_ms / 1000.0f;
+        time_s = (f32)time_ms / 1000.0f;
+        deltatime_s = (f32)deltatime_ms / 1000.0f;
 
         accml_time_ms += deltatime_ms;
 
@@ -335,7 +335,7 @@ int main() {
 
             input_clean();
         }
-        tick_alpha = (float)accml_time_ms / (float)tick_delta_ms;
+        tick_alpha = (f32)accml_time_ms / (f32)tick_delta_ms;
 
         frame_update();
 
@@ -349,9 +349,9 @@ int main() {
 
         SDL_RenderPresent(renderer);
 
-        // const uint64_t CAP_FPS = 60;
-        // uint64_t _d = SDL_GetTicks() - time_ms;
-        // uint64_t _fps = 1000ull / CAP_FPS;
+        // const u32 CAP_FPS = 60;
+        // u32 _d = SDL_GetTicks() - time_ms;
+        // u32 _fps = 1000ull / CAP_FPS;
         // SDL_Delay(_fps > _d ? _d : 0);
     }
 

@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <float.h>
 
 #define MAX(x, y) (x > y ? x : y);
 #define MIN(x, y) (x < y ? x : y);
@@ -15,3 +16,6 @@ typedef uint32_t u32;
 typedef uint64_t u64;
 
 typedef int8_t i8;
+typedef int32_t i32;
+
+typedef _Float32 f32;

@@ -9,7 +9,7 @@
 pool slime_pool = {0};
 
 size_t slime_sprite = 0;
-const float slime_move_speed = 1;
+const f32 slime_move_speed = 1;
 
 void slime_init(size_t cap) {
     size_t scap = pool_scap(sizeof(slime), cap);
@@ -56,6 +56,9 @@ void slime_update() {
 
         vec2 move_delta; vec2_scale(&move_delta, move_dir, slime_move_speed);
         vec2_add(slime_pos, *slime_pos, move_delta);
+
+        // eff
+        
 
         if (slime_ett->health <= 0) slime_remv(i);
     }

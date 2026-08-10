@@ -7,7 +7,9 @@ typedef struct {
     u64 tag;
     vec2 pos;
     vec2 bounds;
-    float health;
+    f32 health;
+
+    u32 *effs;
 } entity;
 
 extern pool entity_pool;

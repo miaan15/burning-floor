@@ -1,6 +1,7 @@
 #pragma once
 
 #include "alloc/arena.h"
+#include "macro.h"
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_timer.h>
 
@@ -17,12 +18,12 @@ extern arena *tick_arena;
 extern const bool *keyb_state;
 extern bool *last_keyb_state;
 
-extern uint64_t time_ms;
-extern uint64_t deltatime_ms;
-extern float time_s;
-extern float deltatime_s;
+extern u32 time_ms;
+extern u32 deltatime_ms;
+extern f32 time_s;
+extern f32 deltatime_s;
 
-extern uint64_t ticks_cnt;
-extern uint64_t tick_delta_ms;
-extern float tick_alpha;
+extern u32 ticks_cnt;
+extern u32 tick_delta_ms;
+extern f32 tick_alpha;
 extern bool tick_flag;
