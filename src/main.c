@@ -16,7 +16,10 @@ SDL_Renderer *renderer = NULL;
 
 int window_w = 0, window_h = 0;
 
-arena global_ar = {0};
+arena omni_arena = {0};
+arena tick_arenas[2] = {0};
+size_t tick_arena_cur_idx = 0;
+arena *tick_arena = NULL;
 
 const bool *keyb_state = NULL;
 bool *last_keyb_state = NULL;
@@ -62,7 +65,7 @@ const float player_atk_dur = .3;
 const float player_dash_speed = 3;
 const float player_dash_cd = 1;
 const float player_dash_dur = .05;
-const float player_atk_damage = 1;
+const float player_atk_damage = 10;
 
 vec2 player_move_dir = {0};
 vec2 player_move_dir_nozero = {0};
@@ -72,6 +75,9 @@ bool player_atking = false;
 bool player_just_atk = false;
 char player_atk_dir = 0; // RLUD
 float player_atk_timest = -1000;
+u32 *player_atk_hitted_etts = 0;
+size_t player_atk_hitted_etts_cap = 10;
+size_t player_atk_hitted_etts_len = 0;
 
 bool player_dash_able = false;
 bool player_dashing = false;
@@ -80,12 +86,15 @@ vec2 player_dash_dir = {0};
 float player_dash_timest = -1000;
 
 void setup() {
-    arena_init(&global_ar, 100ull << 10 << 10); // 100mB
+    arena_init(&omni_arena, 100ull << 10 << 10); // 100mB
+
+    arena_init_in_arena(&tick_arenas[0], &omni_arena, 10ull << 10 << 10); // 10mB
+    arena_init_in_arena(&tick_arenas[1], &omni_arena, 10ull << 10 << 10); // 10mB
 
     { // input
     int numkeys;
     SDL_GetKeyboardState(&numkeys);
-    last_keyb_state = arena_alloc(&global_ar, numkeys, 1);
+    last_keyb_state = arena_alloc(&omni_arena, numkeys, 1);
     }
 
     // Tex
@@ -205,6 +214,11 @@ void update() {
                                   atk_hitbox_pos.y - atk_hitbox_size.y / 2,
                                   atk_hitbox_size.x, atk_hitbox_size.y };
 
+        // NOTE need to keep this run in every tick white player_atking
+        void *new_hitted = arena_alloc(tick_arena, player_atk_hitted_etts_cap * sizeof(u32), alignof(u32));
+        memcpy(new_hitted, player_atk_hitted_etts, player_atk_hitted_etts_len * sizeof(u32));
+        player_atk_hitted_etts = new_hitted;
+
         for (size_t i = 0; i < entity_pool.len; ++i) {
             if (!pool_alive(&entity_pool, i)) continue;
 
@@ -216,10 +230,23 @@ void update() {
                                entity->bounds.x, entity->bounds.y };
 
             if (HasFRectIntersection(&hitbox_rect, &rect)) {
-                entity->health -= player_atk_damage;
+                size_t hitted = (size_t)-1;
+                for (size_t j = 0; j < player_atk_hitted_etts_len; ++j) {
+                    if (player_atk_hitted_etts[j] == (u32)i) {
+                        hitted = j;
+                        break;
+                    }
+                }
+
+                if (hitted == (size_t)-1) {
+                    player_atk_hitted_etts[player_atk_hitted_etts_len++] = i;
+                    entity->health -= player_atk_damage;
+                }
+
+                if (player_atk_hitted_etts_len >= player_atk_hitted_etts_cap) break;
             }
         }
-    }
+    } else { player_atk_hitted_etts_len = 0; } // FIXME delete
 
     if (player_dashing) {
         vec2_scale(&move_delta, player_dash_dir, player_dash_speed * tick_delta_ms);
@@ -301,6 +328,9 @@ int main() {
             accml_time_ms -= tick_delta_ms;
             tick_flag = true;
 
+            tick_arena = &tick_arenas[tick_arena_cur_idx];
+            tick_arena_cur_idx += 1;
+            tick_arena_cur_idx %= 2;
             update();
 
             input_clean();
@@ -326,7 +356,7 @@ int main() {
     }
 
 END:
-    arena_destroy(&global_ar);
+    arena_destroy(&omni_arena);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

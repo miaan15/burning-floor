@@ -8,7 +8,7 @@
 pool entity_pool = {0};
 
 void entity_init(size_t cap) {
-    pool_init_in_arena(&entity_pool, &global_ar, sizeof(entity), alignof(entity), cap);
+    pool_init_in_arena(&entity_pool, &omni_arena, sizeof(entity), alignof(entity), cap);
 }
 
 size_t entity_new(entity *data) {

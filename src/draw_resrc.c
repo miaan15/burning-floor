@@ -12,7 +12,7 @@ size_t textures_len = 0;
 void texture_init(size_t cap) {
     assert(!textures);
     textures_cap = cap;
-    textures = arena_alloc(&global_ar, cap * sizeof(SDL_Texture *), alignof(SDL_Texture *));
+    textures = arena_alloc(&omni_arena, cap * sizeof(SDL_Texture *), alignof(SDL_Texture *));
     textures_len = 0;
 
     // stub
@@ -75,7 +75,7 @@ size_t sprites_len = 0;
 void sprite_init(size_t cap) {
     assert(!sprites);
     sprites_cap = cap;
-    sprites = arena_alloc(&global_ar, cap * sizeof(sprite), alignof(sprite));
+    sprites = arena_alloc(&omni_arena, cap * sizeof(sprite), alignof(sprite));
     sprites_len = 0;
 
     // stub

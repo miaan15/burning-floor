@@ -18,13 +18,13 @@ size_t rectdrs_cap = 0;
 size_t rectdrs_len = 0;
 
 void draw_init(size_t texdr_cap, size_t rectdr_cap) {
-    texdrs = (texdr *)arena_alloc(&global_ar, texdr_cap * sizeof(texdr), alignof(texdr));
-    texdr_metas = (texdr_meta *)arena_alloc(&global_ar, texdr_cap * sizeof(texdr_meta), alignof(texdr_meta));;
+    texdrs = (texdr *)arena_alloc(&omni_arena, texdr_cap * sizeof(texdr), alignof(texdr));
+    texdr_metas = (texdr_meta *)arena_alloc(&omni_arena, texdr_cap * sizeof(texdr_meta), alignof(texdr_meta));;
     texdrs_cap = texdr_cap;
     texdrs_len = 0;
 
-    rectdrs = (rectdr *)arena_alloc(&global_ar, rectdr_cap * sizeof(rectdr), alignof(rectdr));
-    rectdr_metas = (rectdr_meta *)arena_alloc(&global_ar, rectdr_cap * sizeof(rectdr_meta), alignof(rectdr_meta));;
+    rectdrs = (rectdr *)arena_alloc(&omni_arena, rectdr_cap * sizeof(rectdr), alignof(rectdr));
+    rectdr_metas = (rectdr_meta *)arena_alloc(&omni_arena, rectdr_cap * sizeof(rectdr_meta), alignof(rectdr_meta));;
     rectdrs_cap = rectdr_cap;
     rectdrs_len = 0;
 }

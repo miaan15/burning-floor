@@ -79,7 +79,7 @@ void slime_draw() {
 arena enemy_pools_ar = {0};
 
 void enemy_init(size_t scap) {
-    arena_init_in_arena(&enemy_pools_ar, &global_ar, scap);
+    arena_init_in_arena(&enemy_pools_ar, &omni_arena, scap);
     log_debug("New Enemy enemy_pools Arena from %p to %p: caps = %zu",
             enemy_pools_ar.raw, (char *)enemy_pools_ar.raw + enemy_pools_ar.scap, enemy_pools_ar.scap);
 }
