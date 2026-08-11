@@ -1,7 +1,38 @@
 #include "effect.h"
 
 #include "context.h"
+#include "log.h"
 #include <assert.h>
+
+pool effect_pool = {0};
+
+void effect_init(size_t cap) {
+    pool_init_in_arena(&effect_pool, &omni_arena, sizeof(effect), cap * sizeof(effect), alignof(effect));
+
+    // stub
+    pool_new(&effect_pool, NULL);
+}
+
+size_t effect_new(effect *data) {
+    size_t effect = pool_new(&effect_pool, data);
+    if (effect == (size_t)-1) log_err("effect_new(): ");
+
+    log_debug("Create effect [%zu]: type = %d", effect, data->type);
+
+    return effect;
+}
+
+bool effect_remv(size_t idx) {
+    if (!pool_alive(&effect_pool, idx)) {
+        log_warn("effect_remv(): [idx] is already dead");
+        return false;
+    }
+    effect *effect = pool_ptr(&effect_pool, idx);
+
+    log_debug("Destroy effect [%zu]", idx);
+
+    return true;
+}
 
 void effect_burn_apply(effect *eff, f32 *r_damage, bool *r_end) {
     assert(eff->type == EFF_BURN);

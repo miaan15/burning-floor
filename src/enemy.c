@@ -37,6 +37,8 @@ bool slime_remv(size_t idx) {
     entity_remv(slime->entity);
     pool_remv(&slime_pool, idx);
 
+    log_debug("Destroy Slime [%zu]", idx);
+
     return true;
 }
 
@@ -46,9 +48,9 @@ void slime_update() {
 
         slime *slime = pool_ptr(&slime_pool, i);
 
-        entity *slime_ett = entity_ptr(slime->entity);
+        entity *entity = entity_ptr(slime->entity);
 
-        vec2 *slime_pos = &slime_ett->pos;
+        vec2 *slime_pos = &entity->pos;
         vec2 target_pos = entity_ptr(slime->target)->pos;
 
         vec2 move_dir; vec2_sub(&move_dir, target_pos, *slime_pos);
@@ -58,9 +60,14 @@ void slime_update() {
         vec2_add(slime_pos, *slime_pos, move_delta);
 
         // eff
-        
+        if (entity->effs) {
+            size_t _size = entity->effs[0];
+            for (size_t i = 1; i <= _size; ++i) {
+                log_info("Slime [%zu] got effect [%zu]", i, entity->effs[i]);
+            }
+        }
 
-        if (slime_ett->health <= 0) slime_remv(i);
+        if (entity->health <= 0) slime_remv(i);
     }
 }
 

@@ -9,8 +9,8 @@ typedef struct {
 } arena;
 
 void arena_init(arena *ar, size_t caps);
-void arena_init_over(arena *ar, void *root, size_t caps);
-void arena_init_in_arena(arena *ar, arena *root_ar, size_t caps);
+void arena_init_over(arena *ar, void *root, size_t scap);
+void arena_init_in_arena(arena *ar, arena *root_ar, size_t scap);
 
 void arena_destroy(arena *ar);
 

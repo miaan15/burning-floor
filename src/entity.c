@@ -33,3 +33,21 @@ bool entity_remv(size_t idx) {
 entity *entity_ptr(size_t idx) {
     return (entity *)pool_ptr(&entity_pool, idx);
 }
+
+void _entity_add_effect(size_t idx, size_t eff) {
+    entity *entity = pool_ptr(&entity_pool, idx);
+
+    if (entity->effs) {
+        size_t new_size = entity->effs[0] + 1;
+        void *new_ptr = arena_alloc(tick_arena, (new_size + 1) * sizeof(u32), alignof(u32));
+        memcpy(new_ptr, &entity->effs, entity->effs[0] * sizeof(u32));
+        entity->effs = new_ptr;
+        ++entity->effs[0];
+        entity->effs[new_size] = eff;
+    } else {
+        entity->effs = arena_alloc(tick_arena, 2 * sizeof(u32), alignof(u32));
+        memset(entity->effs, 0, 2 * sizeof(u32));
+        ++entity->effs[0];
+        entity->effs[1] = eff;
+    }
+}

@@ -1,6 +1,8 @@
+#include "action.h"
 #include "context.h"
 #include "draw.h"
 #include "draw_resrc.h"
+#include "effect.h"
 #include "enemy.h"
 #include "entity.h"
 #include "log.h"
@@ -111,6 +113,12 @@ void setup() {
 
     // Entity
     entity_init(1024);
+
+    // Action
+    action_init(1024);
+
+    // Effect
+    effect_init(1024);
 
     // Player
     player_sprite = sprite_new(1, (rect){0, 0, 20, 20});
@@ -239,8 +247,14 @@ void update() {
                 }
 
                 if (hitted == (size_t)-1) {
+                    action_new(player_entity, i, ACTION_HIT, &player_atk_damage);
                     player_atk_hitted_etts[player_atk_hitted_etts_len++] = i;
-                    entity->health -= player_atk_damage;
+
+                    // entity->health -= player_atk_damage;
+                    //
+                    // // eff
+                    // effect e = {EFF_BURN};
+                    // _entity_add_effect(i, effect_new(&e));
                 }
 
                 if (player_atk_hitted_etts_len >= player_atk_hitted_etts_cap) break;
@@ -260,6 +274,8 @@ void update() {
     }
 
     slime_update();
+
+    action_update();
 }
 
 void frame_update() {

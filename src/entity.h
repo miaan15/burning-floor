@@ -21,3 +21,5 @@ size_t entity_new(entity *data);
 bool entity_remv(size_t idx);
 
 entity *entity_ptr(size_t idx);
+
+void _entity_add_effect(size_t idx, size_t eff);
