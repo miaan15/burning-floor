@@ -19,3 +19,6 @@ typedef int8_t i8;
 typedef int32_t i32;
 
 typedef _Float32 f32;
+
+typedef struct { u32 raw; } prx32;
+typedef struct { u64 raw; } prx64;

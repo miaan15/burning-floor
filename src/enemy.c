@@ -3,6 +3,7 @@
 #include "draw.h"
 #include "entity.h"
 #include "log.h"
+#include <assert.h>
 #include <stdalign.h>
 #include <context.h>
 
@@ -62,8 +63,9 @@ void slime_update() {
         // eff
         if (entity->effs) {
             size_t _size = entity->effs[0];
-            for (size_t i = 1; i <= _size; ++i) {
-                log_info("Slime [%zu] got effect [%zu]", i, entity->effs[i]);
+            assert(_size < 1000);
+            for (size_t j = 1; j <= _size; ++j) {
+                log_info("Slime [%u] got %zu effs: effect [%zu] = [%zu]", i, _size, j, entity->effs[j]);
             }
         }
 

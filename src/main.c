@@ -117,9 +117,6 @@ void setup() {
     // Action
     action_init(1024);
 
-    // Effect
-    effect_init(1024);
-
     // Player
     player_sprite = sprite_new(1, (rect){0, 0, 20, 20});
 
@@ -249,6 +246,9 @@ void update() {
                 if (hitted == (size_t)-1) {
                     action_new(player_entity, i, ACTION_HIT, &player_atk_damage);
                     player_atk_hitted_etts[player_atk_hitted_etts_len++] = i;
+
+                    // eff
+                    action_new(player_entity, i, ACTION_EFF_OFFS + EFF_BURN, NULL);
 
                     // entity->health -= player_atk_damage;
                     //
